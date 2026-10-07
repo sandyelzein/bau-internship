@@ -1,0 +1,84 @@
+/* src/pages/AuthPages.css */
+
+.auth-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #002456 0%, #003571 60%, #1a4f8a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-card {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 440px;
+  overflow: hidden;
+}
+
+.auth-card-wide { max-width: 600px; }
+
+.auth-header {
+  background: var(--primary);
+  padding: 28px 32px 24px;
+  text-align: center;
+}
+
+.auth-logo {
+  width: 56px;
+  height: 56px;
+  background: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+  font-weight: 900;
+  font-size: 1.1rem;
+  color: var(--primary);
+  letter-spacing: 1px;
+}
+
+.auth-title {
+  color: white;
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.auth-subtitle {
+  color: rgba(255,255,255,0.7);
+  font-size: 0.78rem;
+}
+
+.auth-body {
+  padding: 32px;
+}
+
+.auth-form-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 20px;
+}
+
+.auth-info {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background: var(--primary-pale);
+  border-left: 3px solid var(--primary);
+  padding: 10px 14px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  margin-bottom: 20px;
+}
+
+.auth-footer-text {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.required { color: var(--danger); }

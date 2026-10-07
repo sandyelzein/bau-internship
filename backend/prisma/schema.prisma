@@ -1,0 +1,265 @@
+// prisma/schema.prisma
+// BAU Internship Management System — FIXED
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// USER ACCOUNT
+// ─────────────────────────────────────────
+model UserAccount {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(STUDENT)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  student         Student?
+  committeeMember CommitteeMember?
+
+  @@map("user_accounts")
+}
+
+enum Role {
+  STUDENT
+  COMMITTEE_MEMBER
+}
+
+// ─────────────────────────────────────────
+// STUDENT
+// ─────────────────────────────────────────
+model Student {
+  studentId        String           @id
+  fullName         String
+  universityEmail  String           @unique
+  campus           String?
+  phone            String?
+  gpa              Float?
+  completedCredits Int?
+  // FIX: was Int? but migration 20260518055628 changed DB column to TEXT
+  // import.service.js stores raw YEARDESC string (e.g. "Year 2", "2nd Year")
+  academicYear     String?
+  internshipStatus InternshipStatus @default(NOT_STARTED)
+  graduationStatus GraduationStatus @default(NOT_GRADUATED)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  userId Int?         @unique
+  user   UserAccount? @relation(fields: [userId], references: [id])
+
+  internshipRequests InternshipRequest[]
+  documents          Document[]
+
+  @@map("students")
+}
+
+enum InternshipStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  NOT_COMPLETED
+}
+
+enum GraduationStatus {
+  NOT_GRADUATED
+  GRADUATED
+}
+
+// ─────────────────────────────────────────
+// COMMITTEE MEMBER
+// ─────────────────────────────────────────
+model CommitteeMember {
+  id        Int      @id @default(autoincrement())
+  fullName  String
+  isAdmin   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId Int         @unique
+  user   UserAccount @relation(fields: [userId], references: [id])
+
+  reviewedRequests InternshipRequest[]
+
+  @@map("committee_members")
+}
+
+// ─────────────────────────────────────────
+// INTERNSHIP REQUEST
+// startDate and endDate live here (not on Internship)
+// durationWeeks is nullable — derived from dates
+// ─────────────────────────────────────────
+model InternshipRequest {
+  id              Int           @id @default(autoincrement())
+  requestCode     String        @unique
+  companyName     String
+  role            String
+  skills          String
+  durationWeeks   Int?
+  startDate       DateTime
+  endDate         DateTime
+  status          RequestStatus @default(PENDING)
+  rejectionReason String?
+  submittedAt     DateTime      @default(now())
+  reviewedAt      DateTime?
+  updatedAt       DateTime      @updatedAt
+
+  studentId    String
+  student      Student @relation(fields: [studentId], references: [studentId])
+
+  reviewedById Int?
+  reviewedBy   CommitteeMember? @relation(fields: [reviewedById], references: [id])
+
+  internship Internship?
+
+  @@map("internship_requests")
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ─────────────────────────────────────────
+// INTERNSHIP
+// FIX: removed startDate/endDate (they belong on InternshipRequest)
+//      added evaluationStatus and supervisor/token relations
+// ─────────────────────────────────────────
+model Internship {
+  id               Int              @id @default(autoincrement())
+  status           InternshipStatus @default(IN_PROGRESS)
+  evaluationStatus EvaluationStatus @default(NOT_SENT)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  requestId Int               @unique
+  request   InternshipRequest @relation(fields: [requestId], references: [id])
+
+  supervisor       Supervisor?
+  evaluationTokens EvaluationToken[]
+
+  @@map("internships")
+}
+
+enum EvaluationStatus {
+  NOT_SENT
+  SENT
+  COMPLETED
+  OVERDUE
+}
+
+// ─────────────────────────────────────────
+// SUPERVISOR
+// ─────────────────────────────────────────
+model Supervisor {
+  id          Int      @id @default(autoincrement())
+  name        String
+  email       String
+  phone       String?
+  submittedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  internshipId Int        @unique
+  internship   Internship @relation(fields: [internshipId], references: [id])
+
+  @@map("supervisors")
+}
+
+// ─────────────────────────────────────────
+// EVALUATION TOKEN
+// ─────────────────────────────────────────
+model EvaluationToken {
+  id          Int       @id @default(autoincrement())
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  internshipId Int
+  internship   Internship @relation(fields: [internshipId], references: [id])
+
+  evaluation EvaluationSubmission?
+
+  @@map("evaluation_tokens")
+}
+
+// ─────────────────────────────────────────
+// EVALUATION SUBMISSION
+// ─────────────────────────────────────────
+model EvaluationSubmission {
+  id                   Int      @id @default(autoincrement())
+  professionalism      Int
+  technicalSkills      Int
+  communicationSkills  Int
+  teamwork             Int
+  attendanceCommitment Int
+  overallPerformance   Int
+  comments             String?  @db.Text
+  wouldRecommend       Boolean
+  submittedAt          DateTime @default(now())
+
+  tokenId Int             @unique
+  token   EvaluationToken @relation(fields: [tokenId], references: [id])
+
+  @@map("evaluation_submissions")
+}
+
+// ─────────────────────────────────────────
+// DOCUMENT
+// ─────────────────────────────────────────
+model Document {
+  id           Int          @id @default(autoincrement())
+  documentType DocumentType
+  fileName     String
+  filePath     String
+  fileSize     Int
+  uploadedAt   DateTime     @default(now())
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [studentId])
+
+  @@map("documents")
+}
+
+enum DocumentType {
+  OFFER_LETTER
+  COMPLETION_CERTIFICATE
+  RECOMMENDATION_LETTER
+}
+
+// ─────────────────────────────────────────
+// EMAIL LOG
+// ─────────────────────────────────────────
+model EmailLog {
+  id           Int          @id @default(autoincrement())
+  recipient    String
+  subject      String
+  body         String       @db.Text
+  status       EmailStatus  @default(SENT)
+  errorMessage String?
+  sentAt       DateTime     @default(now())
+  triggerType  EmailTrigger
+
+  @@map("email_logs")
+}
+
+enum EmailStatus {
+  SENT
+  FAILED
+}
+
+enum EmailTrigger {
+  REQUEST_APPROVED
+  REQUEST_REJECTED
+  SUPERVISOR_REMINDER
+  SUPERVISOR_MISSING
+  EVALUATION_REQUEST
+}

@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Environment variables — NEVER upload these
+backend/.env
+frontend/.env
+
+# Uploaded files
+backend/uploads/
+
+# Build output
+frontend/dist/
+
+# OS files
+.DS_Store
+Thumbs.db
