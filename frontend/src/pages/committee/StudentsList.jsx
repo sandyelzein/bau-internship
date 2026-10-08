@@ -8,6 +8,7 @@ import api from '../../api/axios';
 const INTERNSHIP_STATUSES = ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'NOT_COMPLETED'];
 const GRADUATION_STATUSES  = ['NOT_GRADUATED', 'GRADUATED'];
 const ACADEMIC_YEARS       = [1, 2, 3, 4];
+const formatYear = value => value ? (/year/i.test(String(value)) ? value : `Year ${value}`) : '—';
 
 export default function StudentsList() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -138,10 +139,10 @@ export default function StudentsList() {
                       <td style={{ fontWeight: 600 }}>{s.fullName}</td>
                       <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{s.universityEmail}</td>
                       <td>{s.campus || '—'}</td>
-                      <td>{s.academicYear ? `Y${s.academicYear}` : '—'}</td>
+                      <td>{formatYear(s.academicYear)}</td>
                       <td>{s.gpa?.toFixed(2) ?? '—'}</td>
                       <td>{s.completedCredits ?? '—'}</td>
-                      <td><StatusBadge status={s.internshipStatus || 'NOT_STARTED'} /></td>
+                      <td><StatusBadge status={s.internshipRequests?.[0]?.internship?.status || 'NOT_STARTED'} /></td>
                       <td>
                         {s.userId
                           ? <span className="badge badge-approved">Active</span>

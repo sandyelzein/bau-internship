@@ -51,6 +51,16 @@ export function AuthProvider({ children }) {
     return userRole;
   };
 
+  const registerSupervisor = async (email, password) => {
+    const res = await api.post('/auth/register-supervisor', { email, password });
+    const { token, role: userRole, profile } = res.data;
+    localStorage.setItem('token', token);
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    setUser(profile);
+    setRole(userRole);
+    return userRole;
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     delete api.defaults.headers.common['Authorization'];
@@ -61,7 +71,7 @@ export function AuthProvider({ children }) {
   const isAdmin = role === 'COMMITTEE_MEMBER' && user?.isAdmin === true;
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, login, register, logout, isAdmin }}>
+    <AuthContext.Provider value={{ user, role, loading, login, register, registerSupervisor, logout, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

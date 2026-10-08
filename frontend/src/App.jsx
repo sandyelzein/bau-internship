@@ -7,6 +7,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 // Auth pages
 import LoginPage    from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import SupervisorRegisterPage from './pages/SupervisorRegisterPage';
+import SupervisorDashboard from './pages/supervisor/SupervisorDashboard';
 
 // Student pages
 import StudentDashboard  from './pages/student/StudentDashboard';
@@ -34,7 +36,7 @@ function ProtectedRoute({ children, allowedRole }) {
   if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;
   if (!user)   return <Navigate to="/login" replace />;
   if (allowedRole && role !== allowedRole) {
-    return <Navigate to={role === 'STUDENT' ? '/student' : '/committee'} replace />;
+    return <Navigate to={role === 'STUDENT' ? '/student' : role === 'SUPERVISOR' ? '/supervisor' : '/committee'} replace />;
   }
   return children;
 }
@@ -43,7 +45,7 @@ function RootRedirect() {
   const { user, role, loading } = useAuth();
   if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;
   if (!user)   return <Navigate to="/login" replace />;
-  return <Navigate to={role === 'STUDENT' ? '/student' : '/committee'} replace />;
+  return <Navigate to={role === 'STUDENT' ? '/student' : role === 'SUPERVISOR' ? '/supervisor' : '/committee'} replace />;
 }
 
 function AppRoutes() {
@@ -52,6 +54,7 @@ function AppRoutes() {
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login"    element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/register/supervisor" element={<SupervisorRegisterPage />} />
 
       {/* NEW: public evaluation page — no auth needed */}
       <Route path="/evaluation/:token" element={<EvaluationPage />} />
@@ -75,6 +78,10 @@ function AppRoutes() {
       {/* NEW */}
       <Route path="/student/supervisor" element={
         <ProtectedRoute allowedRole="STUDENT"><SupervisorForm /></ProtectedRoute>
+      } />
+
+      <Route path="/supervisor" element={
+        <ProtectedRoute allowedRole="SUPERVISOR"><SupervisorDashboard /></ProtectedRoute>
       } />
 
       {/* Committee routes */}

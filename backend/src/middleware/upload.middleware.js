@@ -7,7 +7,6 @@ const MAX_FILE_SIZE = (parseInt(process.env.MAX_FILE_SIZE_MB) || 10) * 1024 * 10
 
 // Map document types to upload folders
 const UPLOAD_FOLDERS = {
-  OFFER_LETTER: 'offer-letters',
   COMPLETION_CERTIFICATE: 'completion-certificates',
   RECOMMENDATION_LETTER: 'recommendation-letters',
 };
@@ -49,6 +48,36 @@ const upload = multer({
   limits: { fileSize: MAX_FILE_SIZE },
 });
 
+const evidenceStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../../uploads/task-evidence');
+    fs.mkdirSync(uploadPath, { recursive: true });
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const studentId = req.user?.student?.studentId || 'unknown';
+    cb(null, `${studentId}_${Date.now()}${path.extname(file.originalname).toLowerCase()}`);
+  },
+});
+
+const evidenceFilter = (req, file, cb) => {
+  const allowedExtensions = ['.pdf', '.png', '.jpg', '.jpeg'];
+  const allowedMimeTypes = ['application/pdf', 'image/png', 'image/jpeg'];
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (allowedExtensions.includes(ext) && allowedMimeTypes.includes(file.mimetype)) cb(null, true);
+  else {
+    const err = new Error('Task evidence must be a PDF, PNG, or JPG file');
+    err.code = 'INVALID_FILE_TYPE';
+    cb(err, false);
+  }
+};
+
+const uploadEvidence = multer({
+  storage: evidenceStorage,
+  fileFilter: evidenceFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+});
+
 // Excel upload (for student import)
 const excelStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -81,4 +110,4 @@ const uploadExcel = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-module.exports = { upload, uploadExcel };
+module.exports = { upload, uploadEvidence, uploadExcel };

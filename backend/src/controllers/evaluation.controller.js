@@ -118,6 +118,7 @@ const submitEvaluation = async (req, res, next) => {
           comments:             comments || null,
           wouldRecommend:       wouldRecommend === true || wouldRecommend === 'true',
           tokenId:              tokenRecord.id,
+          internshipId:         tokenRecord.internshipId,
         },
       });
 
@@ -169,6 +170,7 @@ const getEvaluationResults = async (req, res, next) => {
             orderBy: { createdAt: 'desc' },
             take: 1,
           },
+          evaluation: true,
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -190,7 +192,7 @@ const getEvaluationResults = async (req, res, next) => {
       evaluationStatus: i.evaluationStatus,
       supervisorName:   i.supervisor?.name || null,
       supervisorEmail:  i.supervisor?.email || null,
-      evaluation:       i.evaluationTokens[0]?.evaluation || null,
+      evaluation:       i.evaluation || i.evaluationTokens[0]?.evaluation || null,
     }));
 
     res.json({

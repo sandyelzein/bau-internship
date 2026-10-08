@@ -4,8 +4,14 @@
 
 const { PrismaClient } = require('@prisma/client');
 const { sendApprovalEmail, sendRejectionEmail } = require('../services/email.service');
+const path = require('path');
+const fs = require('fs');
 
 const prisma = new PrismaClient();
+
+function removeUploadedEvidence(file) {
+  if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
+}
 
 async function generateRequestCode() {
   const year  = new Date().getFullYear();
@@ -20,23 +26,38 @@ async function generateRequestCode() {
 const submitRequest = async (req, res, next) => {
   try {
     const studentId = req.user.student?.studentId;
-    if (!studentId) return res.status(400).json({ error: 'Student profile not found' });
+    if (!studentId) {
+      removeUploadedEvidence(req.file);
+      return res.status(400).json({ error: 'Student profile not found' });
+    }
 
-    const { companyName, role, skills, startDate, endDate } = req.body;
+    const setting = await prisma.systemSetting.findUnique({ where: { key: 'REQUESTS_OPEN' } });
+    if (setting?.value === 'false') {
+      removeUploadedEvidence(req.file);
+      return res.status(423).json({ error: 'Internship requests are currently closed by the administrator' });
+    }
 
-    if (!companyName || !role || !startDate || !endDate) {
+    const { companyName, role, skills, tasks, startDate, endDate } = req.body;
+
+    if (!companyName || !role || !tasks?.trim() || !startDate || !endDate) {
+      removeUploadedEvidence(req.file);
       return res.status(400).json({
-        error: 'Company name, role, start date, and end date are required',
+        error: 'Company name, role, tasks, start date, and end date are required',
       });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'A task letter or email screenshot is required' });
     }
 
     const start = new Date(startDate);
     const end   = new Date(endDate);
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      removeUploadedEvidence(req.file);
       return res.status(400).json({ error: 'Invalid date format' });
     }
     if (end <= start) {
+      removeUploadedEvidence(req.file);
       return res.status(400).json({ error: 'End date must be after start date' });
     }
 
@@ -47,6 +68,7 @@ const submitRequest = async (req, res, next) => {
       where: { studentId, status: { in: ['PENDING', 'APPROVED'] } },
     });
     if (activeRequest) {
+      removeUploadedEvidence(req.file);
       return res.status(409).json({
         error: 'You already have an active internship request.',
         existingRequest: { requestCode: activeRequest.requestCode, status: activeRequest.status },
@@ -55,26 +77,30 @@ const submitRequest = async (req, res, next) => {
 
     const requestCode = await generateRequestCode();
 
-    const request = await prisma.internshipRequest.create({
-      data: {
-        requestCode,
-        companyName: companyName.trim(),
-        role:        role.trim(),
-        skills:      skills ? skills.trim() : '',
-        startDate:   start,
-        endDate:     end,
-        durationWeeks,
-        studentId,
-      },
-    });
-
-    await prisma.student.update({
-      where: { studentId },
-      data:  { internshipStatus: 'IN_PROGRESS' },
+    const request = await prisma.$transaction(async (tx) => {
+      const created = await tx.internshipRequest.create({
+        data: {
+          requestCode,
+          companyName: companyName.trim(),
+          role: role.trim(),
+          skills: skills ? skills.trim() : '',
+          tasks: tasks.trim(),
+          evidenceFileName: req.file.originalname,
+          evidenceFilePath: path.relative(path.join(__dirname, '../../uploads'), req.file.path).split(path.sep).join('/'),
+          evidenceFileSize: req.file.size,
+          startDate: start,
+          endDate: end,
+          durationWeeks,
+          studentId,
+        },
+      });
+      await tx.student.update({ where: { studentId }, data: { internshipStatus: 'IN_PROGRESS' } });
+      return created;
     });
 
     res.status(201).json({ message: 'Internship request submitted successfully', request });
   } catch (err) {
+    removeUploadedEvidence(req.file);
     next(err);
   }
 };
@@ -86,7 +112,7 @@ const getMyRequests = async (req, res, next) => {
     const requests  = await prisma.internshipRequest.findMany({
       where: { studentId },
       include: {
-        internship: { include: { supervisor: true } },
+        internship: { include: { supervisor: true, documents: true } },
         reviewedBy: { select: { fullName: true } },
       },
       orderBy: { submittedAt: 'desc' },
@@ -115,7 +141,7 @@ const getAllRequests = async (req, res, next) => {
         include: {
           student:    { select: { studentId: true, fullName: true, universityEmail: true, campus: true, gpa: true, completedCredits: true, academicYear: true, internshipStatus: true } },
           reviewedBy: { select: { fullName: true } },
-          internship: { include: { supervisor: true } },
+          internship: { include: { supervisor: true, documents: true, evaluation: true } },
         },
         orderBy: { submittedAt: 'desc' },
         skip,
@@ -141,7 +167,7 @@ const getRequestById = async (req, res, next) => {
       include: {
         student:    true,
         reviewedBy: { select: { fullName: true } },
-        internship: { include: { supervisor: true } },
+        internship: { include: { supervisor: true, documents: true, evaluation: true } },
       },
     });
     if (!request) return res.status(404).json({ error: 'Request not found' });
@@ -150,6 +176,29 @@ const getRequestById = async (req, res, next) => {
       return res.status(403).json({ error: 'Access denied' });
     }
     res.json(request);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getRequestSettings = async (req, res, next) => {
+  try {
+    const setting = await prisma.systemSetting.findUnique({ where: { key: 'REQUESTS_OPEN' } });
+    res.json({ requestsOpen: setting?.value !== 'false' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateRequestSettings = async (req, res, next) => {
+  try {
+    const requestsOpen = req.body.requestsOpen === true || req.body.requestsOpen === 'true';
+    await prisma.systemSetting.upsert({
+      where: { key: 'REQUESTS_OPEN' },
+      update: { value: String(requestsOpen) },
+      create: { key: 'REQUESTS_OPEN', value: String(requestsOpen) },
+    });
+    res.json({ message: `Internship requests ${requestsOpen ? 'opened' : 'closed'}`, requestsOpen });
   } catch (err) {
     next(err);
   }
@@ -252,4 +301,6 @@ module.exports = {
   getRequestById,
   reviewRequest,
   updateInternshipStatus,
+  getRequestSettings,
+  updateRequestSettings,
 };

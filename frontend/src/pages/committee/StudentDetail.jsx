@@ -6,13 +6,13 @@ import StatusBadge from '../../components/common/StatusBadge';
 import api from '../../api/axios';
 
 const DOC_LABELS = {
-  OFFER_LETTER: 'Offer Letter',
   COMPLETION_CERTIFICATE: 'Completion Certificate',
   RECOMMENDATION_LETTER: 'Recommendation Letter',
 };
 
 // ✅ FIX: Use absolute backend URL so documents open in new tab correctly
 const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const formatYear = value => value ? (/year/i.test(String(value)) ? value : `Year ${value}`) : '—';
 
 export default function StudentDetail() {
   const { studentId } = useParams();
@@ -31,7 +31,6 @@ export default function StudentDetail() {
         setEditForm({
           academicYear:     res.data.academicYear     ?? '',
           gpa:              res.data.gpa              ?? '',
-          internshipStatus: res.data.internshipStatus ?? 'NOT_STARTED',
           graduationStatus: res.data.graduationStatus ?? 'NOT_GRADUATED',
         });
       })
@@ -98,14 +97,6 @@ export default function StudentDetail() {
                         onChange={e => setEditForm(f => ({ ...f, gpa: e.target.value }))} placeholder="0.00 – 4.00" />
                     </div>
                     <div className="form-group">
-                      <label>Internship Status</label>
-                      <select value={editForm.internshipStatus} onChange={e => setEditForm(f => ({ ...f, internshipStatus: e.target.value }))}>
-                        {['NOT_STARTED','IN_PROGRESS','COMPLETED','NOT_COMPLETED'].map(s => (
-                          <option key={s} value={s}>{s.replace(/_/g,' ')}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="form-group">
                       <label>Graduation Status</label>
                       <select value={editForm.graduationStatus} onChange={e => setEditForm(f => ({ ...f, graduationStatus: e.target.value }))}>
                         <option value="NOT_GRADUATED">Not Graduated</option>
@@ -127,17 +118,13 @@ export default function StudentDetail() {
                       ['Phone',            student.phone  || '—'],
                       ['GPA',              student.gpa?.toFixed(2) ?? '—'],
                       ['Credits',          student.completedCredits ?? '—'],
-                      ['Academic Year',    student.academicYear ? `Year ${student.academicYear}` : '—'],
+                      ['Academic Year',    formatYear(student.academicYear)],
                     ].map(([label, val]) => (
                       <div key={label} className="profile-row">
                         <span className="profile-label">{label}</span>
                         <span className="profile-value">{val}</span>
                       </div>
                     ))}
-                    <div className="profile-row">
-                      <span className="profile-label">Internship Status</span>
-                      <StatusBadge status={student.internshipStatus || 'NOT_STARTED'} />
-                    </div>
                     <div className="profile-row">
                       <span className="profile-label">Graduation Status</span>
                       <StatusBadge status={student.graduationStatus || 'NOT_GRADUATED'} />
@@ -163,7 +150,7 @@ export default function StudentDetail() {
                   <div key={doc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid var(--border)' }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{DOC_LABELS[doc.documentType]}</div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{doc.fileName}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{doc.fileName} · {doc.internship?.request?.companyName || 'Legacy document'}</div>
                     </div>
                     {/* ✅ FIX: Absolute URL — was /uploads/... which React Router intercepted */}
                     <a

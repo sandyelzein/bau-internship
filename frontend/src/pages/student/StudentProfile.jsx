@@ -63,10 +63,6 @@ export default function StudentProfile() {
               ))}
 
               <div className="profile-row">
-                <span className="profile-label">Internship Status</span>
-                <StatusBadge status={profile?.internshipStatus || 'NOT_STARTED'} />
-              </div>
-              <div className="profile-row">
                 <span className="profile-label">Graduation Status</span>
                 <StatusBadge status={profile?.graduationStatus || 'NOT_GRADUATED'} />
               </div>

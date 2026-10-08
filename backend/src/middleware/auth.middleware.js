@@ -20,6 +20,7 @@ const authenticate = async (req, res, next) => {
       include: {
         student: true,
         committeeMember: true,
+        supervisor: true,
       },
     });
 
@@ -53,6 +54,13 @@ const requireStudent = (req, res, next) => {
   next();
 };
 
+const requireSupervisor = (req, res, next) => {
+  if (req.user.role !== 'SUPERVISOR') {
+    return res.status(403).json({ error: 'Supervisors only' });
+  }
+  next();
+};
+
 // Only allow admin committee members
 const requireAdmin = (req, res, next) => {
   if (req.user.role !== 'COMMITTEE_MEMBER') {
@@ -64,4 +72,4 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-module.exports = { authenticate, requireCommittee, requireStudent, requireAdmin };
+module.exports = { authenticate, requireCommittee, requireStudent, requireSupervisor, requireAdmin };

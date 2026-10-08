@@ -54,6 +54,15 @@ export default function RegisterPage() {
           <p className="auth-info">
             You must be a registered CS student to create an account. Your Student ID and university email must match our records.
           </p>
+          <div className="alert alert-info" style={{ display: 'block' }}>
+            <strong>Internship requirements</strong>
+            <ul style={{ margin: '8px 0 0 20px' }}>
+              <li>Your student record must already be imported by the department.</li>
+              <li>Use your BAU student ID and the matching university email.</li>
+              <li>An internship request must include its dates, tasks, and company evidence.</li>
+              <li>Requests remain subject to administrator review and approval.</li>
+            </ul>
+          </div>
 
           {error && <div className="alert alert-error">{error}</div>}
 

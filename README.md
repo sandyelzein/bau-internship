@@ -251,11 +251,12 @@ To register as a student:
 | PATCH  | /api/internships/requests/:id/review | Committee | Approve/Reject       |
 | PATCH  | /api/internships/:id/status       | Committee | Update internship status|
 
-### Documents
+### Documents / My Internships
 | Method | Endpoint                          | Access    | Description             |
 |--------|-----------------------------------|-----------|-------------------------|
-| POST   | /api/documents/upload             | Student   | Upload PDF              |
+| POST   | /api/documents/upload             | Student   | Upload PDF for a completed internship |
 | GET    | /api/documents/my                 | Student   | Own documents           |
+| GET    | /api/documents/my-internships     | Student   | Internships, statuses, and documents |
 | DELETE | /api/documents/:id                | Student   | Delete own document     |
 | GET    | /api/documents/student/:id        | Committee | Student's documents     |
 
@@ -314,7 +315,7 @@ For Gmail, generate an **App Password** in Google Account → Security → 2FA �
 All student documents are stored in:
 ```
 backend/uploads/
-├── offer-letters/
+├── task-evidence/
 ├── completion-certificates/
 └── recommendation-letters/
 ```
@@ -328,11 +329,15 @@ Files are served at: `http://localhost:5000/uploads/<path>`
 1. Students must exist in the DB (imported via Excel) before they can register.
 2. Student registration: StudentID + email must match the imported record.
 3. Only one active (Pending/Approved) internship request per student at a time.
-4. A student cannot be marked **Graduated** unless their internship is **Completed**.
+4. A student cannot be marked **Graduated** unless at least one internship is **Completed**.
 5. Approval/Rejection triggers an email to the student's university email.
 6. All sent emails are logged in the `email_logs` table regardless of success/failure.
 7. Only Admin committee members can: import students, manage committee members.
 8. Committee members can: review requests, update student fields, view email logs.
+9. Administrators can open or lock internship request submission from the dashboard.
+10. Requests require task details and a PDF/image showing the company's task confirmation.
+11. Completion and recommendation documents belong to a specific internship and unlock only when it is completed.
+12. Supervisors activate an invited account at `/register/supervisor`, then see only assigned students, internship records, completion certificates, and evaluation forms.
 
 ---
 

@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   uploadDocument,
   getMyDocuments,
+  getMyInternships,
   getStudentDocuments,
   deleteDocument,
 } = require('../controllers/document.controller');
@@ -23,6 +24,7 @@ router.post(
   uploadDocument
 );
 router.get('/my', authenticate, requireStudent, getMyDocuments);
+router.get('/my-internships', authenticate, requireStudent, getMyInternships);
 router.delete('/:id', authenticate, requireStudent, deleteDocument);
 
 // Committee routes

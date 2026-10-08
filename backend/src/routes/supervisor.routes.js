@@ -6,8 +6,10 @@ const {
   createMySupervisor,
   updateMySupervisor,
   getSupervisorByInternship,
+  getAssignedInternships,
+  submitAuthenticatedEvaluation,
 } = require('../controllers/supervisor.controller');
-const { authenticate, requireStudent, requireCommittee } = require('../middleware/auth.middleware');
+const { authenticate, requireStudent, requireCommittee, requireSupervisor } = require('../middleware/auth.middleware');
 
 // Student endpoints
 router.get('/my',   authenticate, requireStudent, getMySupervisor);
@@ -16,5 +18,7 @@ router.patch('/my', authenticate, requireStudent, updateMySupervisor);
 
 // Committee endpoint
 router.get('/internship/:internshipId', authenticate, requireCommittee, getSupervisorByInternship);
+router.get('/internships', authenticate, requireSupervisor, getAssignedInternships);
+router.post('/internships/:internshipId/evaluation', authenticate, requireSupervisor, submitAuthenticatedEvaluation);
 
 module.exports = router;

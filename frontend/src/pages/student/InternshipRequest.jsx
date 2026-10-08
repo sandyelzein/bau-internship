@@ -1,6 +1,6 @@
 // src/pages/student/InternshipRequest.jsx
 // CHANGED: replaced durationWeeks input with startDate + endDate fields
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import api from '../../api/axios';
@@ -11,12 +11,23 @@ export default function InternshipRequest() {
     companyName: '',
     role:        '',
     skills:      '',
+    tasks:       '',
     startDate:   '',
     endDate:     '',
   });
   const [error, setError]     = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [evidence, setEvidence] = useState(null);
+  const [requestsOpen, setRequestsOpen] = useState(true);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/internships/settings')
+      .then(res => setRequestsOpen(res.data.requestsOpen))
+      .catch(console.error)
+      .finally(() => setSettingsLoading(false));
+  }, []);
 
   const handleChange = (e) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -31,7 +42,10 @@ export default function InternshipRequest() {
 
     setLoading(true);
     try {
-      const res = await api.post('/internships/requests', form);
+      const payload = new FormData();
+      Object.entries(form).forEach(([key, value]) => payload.append(key, value));
+      payload.append('evidence', evidence);
+      const res = await api.post('/internships/requests', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
       setSuccess(
         `Request submitted! Your Request ID is: ${res.data.request.requestCode}`
       );
@@ -58,6 +72,10 @@ export default function InternshipRequest() {
       <div className="page-container">
         <h1 className="page-title">Submit Internship Request</h1>
 
+        {!settingsLoading && !requestsOpen && (
+          <div className="alert alert-warning" style={{ maxWidth: 640 }}>🔒 Internship requests are currently closed by the administrator.</div>
+        )}
+
         <div className="card" style={{ maxWidth: 640 }}>
           <div className="card-header"><h3>New Internship Request</h3></div>
           <div className="card-body">
@@ -65,12 +83,24 @@ export default function InternshipRequest() {
             {success && <div className="alert alert-success">{success}</div>}
 
             <form onSubmit={handleSubmit}>
+              <fieldset disabled={!requestsOpen || settingsLoading} style={{ border: 0, padding: 0 }}>
               <div className="form-group">
                 <label>Company Name <span style={{ color: 'var(--danger)' }}>*</span></label>
                 <input
                   name="companyName" value={form.companyName}
                   onChange={handleChange} placeholder="e.g. Berytech, IDM" required
                 />
+              </div>
+
+              <div className="form-group">
+                <label>Internship Tasks <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <textarea name="tasks" value={form.tasks} onChange={handleChange} placeholder="Describe the tasks and responsibilities you will perform" rows={5} required />
+              </div>
+
+              <div className="form-group">
+                <label>Task Confirmation <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" onChange={e => setEvidence(e.target.files[0])} required />
+                <small style={{ color: 'var(--text-muted)' }}>Upload the company task letter or a screenshot of the confirming email (PDF, PNG, or JPG; max 10 MB).</small>
               </div>
 
               <div className="form-group">
@@ -121,6 +151,7 @@ export default function InternshipRequest() {
                   {loading ? 'Submitting…' : 'Submit Request'}
                 </button>
               </div>
+              </fieldset>
             </form>
           </div>
         </div>

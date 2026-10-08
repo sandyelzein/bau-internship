@@ -21,7 +21,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const role = await login(form.email, form.password);
-      navigate(role === 'STUDENT' ? '/student' : '/committee');
+      navigate(role === 'STUDENT' ? '/student' : role === 'SUPERVISOR' ? '/supervisor' : '/committee');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
@@ -79,6 +79,9 @@ export default function LoginPage() {
           <p className="auth-footer-text">
             Don't have an account?{' '}
             <Link to="/register">Register as a Student</Link>
+          </p>
+          <p className="auth-footer-text" style={{ marginTop: 8 }}>
+            Invited as a supervisor? <Link to="/register/supervisor">Create supervisor account</Link>
           </p>
         </div>
       </div>

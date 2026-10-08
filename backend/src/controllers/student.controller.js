@@ -73,12 +73,14 @@ const getAllStudents = async (req, res, next) => {
 
     const where = {};
 
-    if (academicYear) where.academicYear = parseInt(academicYear);
-    if (internshipStatus) where.internshipStatus = internshipStatus;
+    if (academicYear) where.academicYear = { contains: String(academicYear), mode: 'insensitive' };
+    if (internshipStatus) where.internshipRequests = { some: { internship: { status: internshipStatus } } };
     if (graduationStatus) where.graduationStatus = graduationStatus;
 
     if (hasAccount === 'false') where.userId = null;
     if (hasAccount === 'true') where.userId = { not: null };
+    if (hasRequest === 'false') where.internshipRequests = { none: {} };
+    if (hasRequest === 'true') where.internshipRequests = { some: {} };
 
     if (search) {
       where.OR = [
@@ -101,6 +103,7 @@ const getAllStudents = async (req, res, next) => {
             requestCode: true,
             status: true,
             submittedAt: true,
+            internship: { select: { id: true, status: true } },
           },
         },
         _count: { select: { internshipRequests: true } },
@@ -109,11 +112,6 @@ const getAllStudents = async (req, res, next) => {
       skip,
       take: parseInt(limit),
     });
-
-    // Filter: students without any internship requests
-    if (hasRequest === 'false') {
-      students = students.filter((s) => s._count.internshipRequests === 0);
-    }
 
     const total = await prisma.student.count({ where });
 
@@ -146,7 +144,9 @@ const getStudentById = async (req, res, next) => {
           },
           orderBy: { submittedAt: 'desc' },
         },
-        documents: true,
+        documents: {
+          include: { internship: { include: { request: { select: { requestCode: true, companyName: true } } } } },
+        },
         user: {
           select: { id: true, email: true, isActive: true, createdAt: true },
         },
@@ -168,7 +168,7 @@ const getStudentById = async (req, res, next) => {
 const updateStudent = async (req, res, next) => {
   try {
     const { studentId } = req.params;
-    const { academicYear, internshipStatus, gpa, graduationStatus } = req.body;
+    const { academicYear, gpa, graduationStatus } = req.body;
 
     const student = await prisma.student.findUnique({ where: { studentId } });
     if (!student) {
@@ -178,8 +178,9 @@ const updateStudent = async (req, res, next) => {
     // Business rule: cannot graduate if internship not completed
     if (
       graduationStatus === 'GRADUATED' &&
-      student.internshipStatus !== 'COMPLETED' &&
-      internshipStatus !== 'COMPLETED'
+      !(await prisma.internship.findFirst({
+        where: { status: 'COMPLETED', request: { studentId } },
+      }))
     ) {
       return res.status(400).json({
         error: 'Student cannot be marked as graduated unless internship is completed',
@@ -187,8 +188,7 @@ const updateStudent = async (req, res, next) => {
     }
 
     const updateData = {};
-    if (academicYear !== undefined) updateData.academicYear = parseInt(academicYear);
-    if (internshipStatus !== undefined) updateData.internshipStatus = internshipStatus;
+    if (academicYear !== undefined) updateData.academicYear = academicYear ? String(academicYear).trim() : null;
     if (gpa !== undefined && gpa !== '') updateData.gpa = parseFloat(gpa);
     if (graduationStatus !== undefined) updateData.graduationStatus = graduationStatus;
 

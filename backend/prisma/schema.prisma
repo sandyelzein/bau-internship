@@ -24,6 +24,7 @@ model UserAccount {
 
   student         Student?
   committeeMember CommitteeMember?
+  supervisor      Supervisor?
 
   @@map("user_accounts")
 }
@@ -31,6 +32,7 @@ model UserAccount {
 enum Role {
   STUDENT
   COMMITTEE_MEMBER
+  SUPERVISOR
 }
 
 // ─────────────────────────────────────────
@@ -97,22 +99,26 @@ model CommitteeMember {
 // durationWeeks is nullable — derived from dates
 // ─────────────────────────────────────────
 model InternshipRequest {
-  id              Int           @id @default(autoincrement())
-  requestCode     String        @unique
-  companyName     String
-  role            String
-  skills          String
-  durationWeeks   Int?
-  startDate       DateTime
-  endDate         DateTime
-  status          RequestStatus @default(PENDING)
-  rejectionReason String?
-  submittedAt     DateTime      @default(now())
-  reviewedAt      DateTime?
-  updatedAt       DateTime      @updatedAt
+  id               Int           @id @default(autoincrement())
+  requestCode      String        @unique
+  companyName      String
+  role             String
+  skills           String
+  tasks            String        @db.Text
+  evidenceFileName String?
+  evidenceFilePath String?
+  evidenceFileSize Int?
+  durationWeeks    Int?
+  startDate        DateTime
+  endDate          DateTime
+  status           RequestStatus @default(PENDING)
+  rejectionReason  String?
+  submittedAt      DateTime      @default(now())
+  reviewedAt       DateTime?
+  updatedAt        DateTime      @updatedAt
 
-  studentId    String
-  student      Student @relation(fields: [studentId], references: [studentId])
+  studentId String
+  student   Student @relation(fields: [studentId], references: [studentId])
 
   reviewedById Int?
   reviewedBy   CommitteeMember? @relation(fields: [reviewedById], references: [id])
@@ -143,8 +149,11 @@ model Internship {
   requestId Int               @unique
   request   InternshipRequest @relation(fields: [requestId], references: [id])
 
-  supervisor       Supervisor?
+  supervisorId     Int?
+  supervisor       Supervisor?           @relation(fields: [supervisorId], references: [id])
   evaluationTokens EvaluationToken[]
+  evaluation       EvaluationSubmission?
+  documents        Document[]
 
   @@map("internships")
 }
@@ -161,14 +170,17 @@ enum EvaluationStatus {
 // ─────────────────────────────────────────
 model Supervisor {
   id          Int      @id @default(autoincrement())
+  title       String?
   name        String
-  email       String
+  email       String   @unique
   phone       String?
   submittedAt DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  internshipId Int        @unique
-  internship   Internship @relation(fields: [internshipId], references: [id])
+  userId      Int?                   @unique
+  user        UserAccount?           @relation(fields: [userId], references: [id])
+  internships Internship[]
+  evaluations EvaluationSubmission[]
 
   @@map("supervisors")
 }
@@ -177,11 +189,11 @@ model Supervisor {
 // EVALUATION TOKEN
 // ─────────────────────────────────────────
 model EvaluationToken {
-  id          Int       @id @default(autoincrement())
-  tokenHash   String    @unique
-  expiresAt   DateTime
-  usedAt      DateTime?
-  createdAt   DateTime  @default(now())
+  id        Int       @id @default(autoincrement())
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 
   internshipId Int
   internship   Internship @relation(fields: [internshipId], references: [id])
@@ -204,10 +216,17 @@ model EvaluationSubmission {
   overallPerformance   Int
   comments             String?  @db.Text
   wouldRecommend       Boolean
+  grade                String?
   submittedAt          DateTime @default(now())
 
-  tokenId Int             @unique
-  token   EvaluationToken @relation(fields: [tokenId], references: [id])
+  tokenId Int?             @unique
+  token   EvaluationToken? @relation(fields: [tokenId], references: [id])
+
+  internshipId Int?        @unique
+  internship   Internship? @relation(fields: [internshipId], references: [id])
+
+  supervisorId Int?
+  supervisor   Supervisor? @relation(fields: [supervisorId], references: [id])
 
   @@map("evaluation_submissions")
 }
@@ -226,6 +245,9 @@ model Document {
   studentId String
   student   Student @relation(fields: [studentId], references: [studentId])
 
+  internshipId Int?
+  internship   Internship? @relation(fields: [internshipId], references: [id])
+
   @@map("documents")
 }
 
@@ -233,6 +255,14 @@ enum DocumentType {
   OFFER_LETTER
   COMPLETION_CERTIFICATE
   RECOMMENDATION_LETTER
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
 }
 
 // ─────────────────────────────────────────

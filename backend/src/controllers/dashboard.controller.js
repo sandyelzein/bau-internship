@@ -17,20 +17,21 @@ const getDashboardStats = async (req, res, next) => {
     ] = await Promise.all([
       prisma.student.count(),
       prisma.student.count({ where: { userId: null } }),
-      prisma.student.count({ where: { internshipStatus: 'COMPLETED' } }),
-      prisma.student.count({ where: { internshipStatus: 'IN_PROGRESS' } }),
+      prisma.internship.count({ where: { status: 'COMPLETED' } }),
+      prisma.internship.count({ where: { status: 'IN_PROGRESS' } }),
       prisma.internshipRequest.count({ where: { status: 'PENDING' } }),
       prisma.internshipRequest.count({ where: { status: 'APPROVED' } }),
       prisma.internshipRequest.count({ where: { status: 'REJECTED' } }),
     ]);
 
-    // Students without any internship requests
-    const studentsWithRequests = await prisma.student.count({
+    // This metric intentionally counts only registered students. Imported students
+    // without accounts are already represented by studentsWithoutAccounts.
+    const studentsWithoutRequests = await prisma.student.count({
       where: {
-        internshipRequests: { some: {} },
+        userId: { not: null },
+        internshipRequests: { none: {} },
       },
     });
-    const studentsWithoutRequests = totalStudents - studentsWithRequests;
 
     res.json({
       totalStudents,

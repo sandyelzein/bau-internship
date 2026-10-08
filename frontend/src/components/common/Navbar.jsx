@@ -21,7 +21,7 @@ export default function Navbar() {
     { to: '/student', label: 'Dashboard', exact: true },
     { to: '/student/requests', label: 'My Requests' },
     { to: '/student/request/new', label: 'New Request' },
-    { to: '/student/documents', label: 'Documents' },
+    { to: '/student/documents', label: 'My Internships' },
     { to: '/student/profile', label: 'Profile' },
   ];
 
@@ -36,13 +36,18 @@ export default function Navbar() {
     ] : []),
   ];
 
-  const links = role === 'STUDENT' ? studentLinks : committeeLinks;
+  const supervisorLinks = [
+    { to: '/supervisor', label: 'My Students', exact: true },
+  ];
+
+  const links = role === 'STUDENT' ? studentLinks : role === 'SUPERVISOR' ? supervisorLinks : committeeLinks;
+  const homePath = role === 'STUDENT' ? '/student' : role === 'SUPERVISOR' ? '/supervisor' : '/committee';
 
   return (
     <nav className="navbar">
       <div className="navbar-inner">
         {/* Brand */}
-        <Link to={role === 'STUDENT' ? '/student' : '/committee'} className="navbar-brand">
+        <Link to={homePath} className="navbar-brand">
           <div className="navbar-logo">
             <span className="navbar-logo-text">BAU</span>
           </div>
@@ -76,7 +81,7 @@ export default function Navbar() {
         <div className="navbar-user">
           <span className="navbar-user-name">{user?.fullName}</span>
           <span className={`navbar-role-badge ${role === 'STUDENT' ? 'student' : 'committee'}`}>
-            {role === 'STUDENT' ? 'Student' : isAdmin ? 'Admin' : 'Committee'}
+            {role === 'STUDENT' ? 'Student' : role === 'SUPERVISOR' ? 'Supervisor' : isAdmin ? 'Admin' : 'Committee'}
           </span>
           <button className="btn btn-secondary btn-sm" onClick={handleLogout}>
             Logout

@@ -5,7 +5,7 @@ const fs = require('fs');
 
 const prisma = new PrismaClient();
 
-const VALID_TYPES = ['OFFER_LETTER', 'COMPLETION_CERTIFICATE', 'RECOMMENDATION_LETTER'];
+const VALID_TYPES = ['COMPLETION_CERTIFICATE', 'RECOMMENDATION_LETTER'];
 
 // POST /api/documents/upload
 // Student uploads a document
@@ -20,18 +20,31 @@ const uploadDocument = async (req, res, next) => {
       return res.status(400).json({ error: 'File is required' });
     }
 
-    const { documentType } = req.body;
+    const { documentType, internshipId } = req.body;
     if (!VALID_TYPES.includes(documentType)) {
       return res.status(400).json({
         error: `Invalid document type. Must be one of: ${VALID_TYPES.join(', ')}`,
       });
     }
 
+    const parsedInternshipId = parseInt(internshipId);
+    const internship = await prisma.internship.findFirst({
+      where: { id: parsedInternshipId, request: { studentId } },
+    });
+    if (!internship) {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(404).json({ error: 'Internship not found' });
+    }
+    if (internship.status !== 'COMPLETED') {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(403).json({ error: 'Documents can only be uploaded after the internship is completed' });
+    }
+
     // Build a relative path to store in DB (relative to /uploads)
     const relativePath = path.relative(
       path.join(__dirname, '../../uploads'),
       req.file.path
-    );
+    ).split(path.sep).join('/');
 
     const document = await prisma.document.create({
       data: {
@@ -40,6 +53,7 @@ const uploadDocument = async (req, res, next) => {
         filePath: relativePath,
         fileSize: req.file.size,
         studentId,
+        internshipId: parsedInternshipId,
       },
     });
 
@@ -52,6 +66,26 @@ const uploadDocument = async (req, res, next) => {
     if (req.file?.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
+    next(err);
+  }
+};
+
+// GET /api/documents/my-internships
+// The student-facing document area is organized by internship, not student.
+const getMyInternships = async (req, res, next) => {
+  try {
+    const studentId = req.user.student?.studentId;
+    const internships = await prisma.internship.findMany({
+      where: { request: { studentId, status: 'APPROVED' } },
+      include: {
+        request: { select: { requestCode: true, companyName: true, role: true, startDate: true, endDate: true } },
+        documents: { orderBy: { uploadedAt: 'desc' } },
+        supervisor: { select: { id: true, title: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(internships);
+  } catch (err) {
     next(err);
   }
 };
@@ -118,6 +152,7 @@ const deleteDocument = async (req, res, next) => {
 module.exports = {
   uploadDocument,
   getMyDocuments,
+  getMyInternships,
   getStudentDocuments,
   deleteDocument,
 };

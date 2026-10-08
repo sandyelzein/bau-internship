@@ -69,7 +69,7 @@ async function main() {
       phone: '03123456',
       gpa: 3.75,
       completedCredits: 90,
-      academicYear: 3,
+      academicYear: 'Year 3',
     },
     {
       studentId: '202054321',
@@ -79,7 +79,7 @@ async function main() {
       phone: '06987654',
       gpa: 3.20,
       completedCredits: 120,
-      academicYear: 4,
+      academicYear: 'Year 4',
     },
     {
       studentId: '202067890',
@@ -89,7 +89,7 @@ async function main() {
       phone: '71456789',
       gpa: 3.90,
       completedCredits: 60,
-      academicYear: 2,
+      academicYear: 'Year 2',
     },
   ];
 

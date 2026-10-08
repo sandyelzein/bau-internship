@@ -5,6 +5,9 @@ import Navbar from '../../components/common/Navbar';
 import StatusBadge from '../../components/common/StatusBadge';
 import api from '../../api/axios';
 
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const formatYear = value => value ? (/year/i.test(String(value)) ? value : `Year ${value}`) : '—';
+
 export default function RequestDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -65,6 +68,7 @@ export default function RequestDetail() {
   if (!request) return <><Navbar /><div className="page-container"><div className="alert alert-error">Request not found.</div></div></>;
 
   const isPending = request.status === 'PENDING';
+  const shorterThanOneYear = request.durationWeeks < 52;
 
   return (
     <>
@@ -88,6 +92,11 @@ export default function RequestDetail() {
                 <StatusBadge status={request.status} />
               </div>
               <div className="card-body">
+                {shorterThanOneYear && (
+                  <div className="alert alert-warning">
+                    ⚠️ This internship is shorter than one year ({request.durationWeeks} weeks). Review the duration before making the final decision.
+                  </div>
+                )}
                 {[
                   ['Request Code', request.requestCode],
                   ['Company',      request.companyName],
@@ -113,6 +122,17 @@ export default function RequestDetail() {
                         </span>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                <div className="detail-row">
+                  <span className="detail-label">Tasks</span>
+                  <span className="detail-value" style={{ whiteSpace: 'pre-wrap' }}>{request.tasks || '—'}</span>
+                </div>
+                {request.evidenceFilePath && (
+                  <div className="detail-row">
+                    <span className="detail-label">Task Evidence</span>
+                    <a className="btn btn-secondary btn-sm" href={`${BACKEND_URL}/uploads/${request.evidenceFilePath}`} target="_blank" rel="noreferrer">View {request.evidenceFileName}</a>
                   </div>
                 )}
 
@@ -166,7 +186,7 @@ export default function RequestDetail() {
                   ['Campus',  request.student?.campus || '—'],
                   ['GPA',     request.student?.gpa?.toFixed(2) ?? '—'],
                   ['Credits', request.student?.completedCredits ?? '—'],
-                  ['Year',    request.student?.academicYear ? `Year ${request.student.academicYear}` : '—'],
+                  ['Year',    formatYear(request.student?.academicYear)],
                 ].map(([label, val]) => (
                   <div key={label} className="detail-row">
                     <span className="detail-label">{label}</span>

@@ -26,6 +26,7 @@ const login = async (req, res, next) => {
       include: {
         student: true,
         committeeMember: true,
+        supervisor: true,
       },
     });
 
@@ -45,11 +46,17 @@ const login = async (req, res, next) => {
     const token = generateToken(user.id);
 
     // Build profile based on role
-    const profile =
-      user.role === 'STUDENT'
+    const profile = user.role === 'STUDENT'
         ? {
             studentId: user.student?.studentId,
             fullName: user.student?.fullName,
+            email: user.email,
+          }
+        : user.role === 'SUPERVISOR'
+        ? {
+            supervisorId: user.supervisor?.id,
+            fullName: user.supervisor?.name,
+            title: user.supervisor?.title,
             email: user.email,
           }
         : {
@@ -63,6 +70,59 @@ const login = async (req, res, next) => {
       token,
       role: user.role,
       profile,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/auth/register-supervisor
+// A supervisor can claim an account only after a student has submitted that email.
+const registerSupervisor = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const supervisor = await prisma.supervisor.findUnique({ where: { email: normalizedEmail } });
+    if (!supervisor) {
+      return res.status(404).json({ error: 'No supervisor invitation was found for this email' });
+    }
+    if (supervisor.userId) {
+      return res.status(409).json({ error: 'An account already exists for this supervisor' });
+    }
+    const existingUser = await prisma.userAccount.findUnique({ where: { email: normalizedEmail } });
+    if (existingUser) {
+      return res.status(409).json({ error: 'An account with this email already exists' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const result = await prisma.$transaction(async (tx) => {
+      const userAccount = await tx.userAccount.create({
+        data: { email: normalizedEmail, passwordHash, role: 'SUPERVISOR' },
+      });
+      const updatedSupervisor = await tx.supervisor.update({
+        where: { id: supervisor.id },
+        data: { userId: userAccount.id },
+      });
+      return { userAccount, supervisor: updatedSupervisor };
+    });
+
+    res.status(201).json({
+      message: 'Supervisor account created',
+      token: generateToken(result.userAccount.id),
+      role: 'SUPERVISOR',
+      profile: {
+        supervisorId: result.supervisor.id,
+        fullName: result.supervisor.name,
+        title: result.supervisor.title,
+        email: result.userAccount.email,
+      },
     });
   } catch (err) {
     next(err);
@@ -161,8 +221,7 @@ const register = async (req, res, next) => {
 const getMe = async (req, res) => {
   const user = req.user;
 
-  const profile =
-    user.role === 'STUDENT'
+  const profile = user.role === 'STUDENT'
       ? {
           studentId: user.student?.studentId,
           fullName: user.student?.fullName,
@@ -175,6 +234,13 @@ const getMe = async (req, res) => {
           internshipStatus: user.student?.internshipStatus,
           graduationStatus: user.student?.graduationStatus,
         }
+      : user.role === 'SUPERVISOR'
+      ? {
+          supervisorId: user.supervisor?.id,
+          fullName: user.supervisor?.name,
+          title: user.supervisor?.title,
+          email: user.email,
+        }
       : {
           memberId: user.committeeMember?.id,
           fullName: user.committeeMember?.fullName,
@@ -185,4 +251,4 @@ const getMe = async (req, res) => {
   res.json({ role: user.role, profile });
 };
 
-module.exports = { login, register, getMe };
+module.exports = { login, register, registerSupervisor, getMe };

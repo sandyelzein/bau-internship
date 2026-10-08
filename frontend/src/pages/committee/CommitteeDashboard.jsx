@@ -32,6 +32,8 @@ export default function CommitteeDashboard() {
   const { user, isAdmin } = useAuth();
   const [stats, setStats]             = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [requestsOpen, setRequestsOpen] = useState(true);
+  const [settingSaving, setSettingSaving] = useState(false);
 
   // Evaluation table state
   const [evalRows, setEvalRows]       = useState([]);
@@ -46,6 +48,18 @@ export default function CommitteeDashboard() {
       .catch(console.error)
       .finally(() => setStatsLoading(false));
   }, []);
+
+  useEffect(() => {
+    api.get('/internships/settings').then(res => setRequestsOpen(res.data.requestsOpen)).catch(console.error);
+  }, []);
+
+  const toggleRequests = async () => {
+    setSettingSaving(true);
+    try {
+      const res = await api.patch('/internships/settings', { requestsOpen: !requestsOpen });
+      setRequestsOpen(res.data.requestsOpen);
+    } finally { setSettingSaving(false); }
+  };
 
   useEffect(() => {
     setEvalLoading(true);
@@ -86,11 +100,12 @@ export default function CommitteeDashboard() {
               Review Requests
             </Link>
             {isAdmin && (
-              <Link to="/committee/import"
-                className="btn btn-secondary"
-                style={{ borderColor: 'white', color: 'white' }}>
-                Import Students
-              </Link>
+              <>
+                <button onClick={toggleRequests} disabled={settingSaving} className="btn btn-secondary" style={{ borderColor: 'white', color: 'white', background: 'transparent' }}>
+                  {requestsOpen ? '🔓 Close Requests' : '🔒 Open Requests'}
+                </button>
+                <Link to="/committee/import" className="btn btn-secondary" style={{ borderColor: 'white', color: 'white' }}>Import Students</Link>
+              </>
             )}
           </div>
         </div>
@@ -102,7 +117,7 @@ export default function CommitteeDashboard() {
             <div className="grid-4 mb-24">
               <StatCard label="Total Students"        value={stats?.totalStudents}          color="#003571" icon="🎓" link="/committee/students" />
               <StatCard label="Without Accounts"      value={stats?.studentsWithoutAccounts} color="#f0a500" icon="👤" link="/committee/students?hasAccount=false" />
-              <StatCard label="No Requests Yet"       value={stats?.studentsWithoutRequests} color="#6c757d" icon="📋" link="/committee/students?hasRequest=false" />
+              <StatCard label="Accounts Without Requests" value={stats?.studentsWithoutRequests} color="#6c757d" icon="📋" link="/committee/students?hasAccount=true&hasRequest=false" />
               <StatCard label="Completed Internships" value={stats?.completedInternships}    color="#28a745" icon="✅" link="/committee/students?internshipStatus=COMPLETED" />
             </div>
 

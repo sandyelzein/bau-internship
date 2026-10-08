@@ -186,7 +186,7 @@ export default function StudentDashboard() {
                     </Link>
                   )}
                   <Link to="/student/documents" className="quick-action-btn">
-                    <span className="quick-action-icon">📂</span><span>Upload Documents</span>
+                      <span className="quick-action-icon">📂</span><span>My Internships</span>
                   </Link>
                   <Link to="/student/requests" className="quick-action-btn">
                     <span className="quick-action-icon">📋</span><span>View History</span>
