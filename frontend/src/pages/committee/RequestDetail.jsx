@@ -68,7 +68,7 @@ export default function RequestDetail() {
   if (!request) return <><Navbar /><div className="page-container"><div className="alert alert-error">Request not found.</div></div></>;
 
   const isPending = request.status === 'PENDING';
-  const shorterThanOneYear = request.durationWeeks < 52;
+  const shorterThanTwoWeeks = request.durationWeeks < 2;
 
   return (
     <>
@@ -92,9 +92,9 @@ export default function RequestDetail() {
                 <StatusBadge status={request.status} />
               </div>
               <div className="card-body">
-                {shorterThanOneYear && (
+                {shorterThanTwoWeeks && (
                   <div className="alert alert-warning">
-                    ⚠️ This internship is shorter than one year ({request.durationWeeks} weeks). Review the duration before making the final decision.
+                    ⚠️ This internship is shorter than two weeks ({request.durationWeeks} weeks). Review the duration before making the final decision.
                   </div>
                 )}
                 {[
