@@ -23,7 +23,15 @@ export default function LoginPage() {
       const role = await login(form.email, form.password);
       navigate(role === 'STUDENT' ? '/student' : role === 'SUPERVISOR' ? '/supervisor' : '/committee');
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed. Please try again.');
+      if (err.response?.data?.error) {
+        setError(err.response.data.error);
+      } else if (!err.response) {
+        setError('Cannot reach the server. Check VITE_API_BASE_URL on the frontend and confirm the Railway backend is running.');
+      } else if (err.response.status >= 500) {
+        setError('The server could not complete sign in. Check the Railway backend logs and database connection.');
+      } else {
+        setError(`Sign in failed (HTTP ${err.response.status}). Check your email and password.`);
+      }
     } finally {
       setLoading(false);
     }
