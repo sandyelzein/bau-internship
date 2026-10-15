@@ -1,0 +1,4 @@
+ALTER TYPE "EmailTrigger" ADD VALUE IF NOT EXISTS 'CERTIFICATE_REMINDER';
+
+ALTER TABLE "internships"
+ADD COLUMN "certificateReminderSentAt" TIMESTAMP(3);

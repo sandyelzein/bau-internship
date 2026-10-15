@@ -4,6 +4,7 @@ import Navbar from '../../components/common/Navbar';
 import api from '../../api/axios';
 
 export default function ImportStudents() {
+  const [importType, setImportType] = useState('students');
   const [file, setFile]         = useState(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -33,6 +34,7 @@ export default function ImportStudents() {
     setError(''); setUploading(true); setResults(null);
 
     const formData = new FormData();
+    formData.append('type', importType);
     formData.append('file', file);
 
     try {
@@ -53,7 +55,7 @@ export default function ImportStudents() {
     <>
       <Navbar />
       <div className="page-container">
-        <h1 className="page-title">Import Students (Excel)</h1>
+        <h1 className="page-title">Import Students and Supervisors</h1>
 
         <div className="grid-2" style={{ alignItems: 'start', gap: 24 }}>
           {/* Upload panel */}
@@ -61,12 +63,28 @@ export default function ImportStudents() {
             <div className="card mb-24">
               <div className="card-header"><h3>Upload Excel File</h3></div>
               <div className="card-body">
+                <div className="form-group">
+                  <label htmlFor="import-type">Import type</label>
+                  <select id="import-type" value={importType} onChange={e => {
+                    setImportType(e.target.value);
+                    setFile(null);
+                    setResults(null);
+                    setError('');
+                    if (fileRef.current) fileRef.current.value = '';
+                  }}>
+                    <option value="students">Students</option>
+                    <option value="supervisors">Supervisors</option>
+                  </select>
+                </div>
+
                 {/* Column reference */}
                 <div className="alert alert-info" style={{ marginBottom: 20 }}>
                   <div>
                     <strong>Required Excel columns:</strong>
                     <div style={{ fontFamily: 'monospace', marginTop: 8, fontSize: '0.82rem', lineHeight: 2 }}>
-                      ID · ENGLISHNAME · CAMPUS · PHONE · EMAIL · CUMULATIVE_GPA · HOURS_EARNED
+                      {importType === 'students'
+                        ? 'ID · ENGLISHNAME · EMAIL · CAMPUS · PHONE · CUMULATIVE_GPA · HOURS_EARNED · YEARDESC'
+                        : 'NAME · EMAIL · POSITION · PHONE'}
                     </div>
                   </div>
                 </div>
@@ -120,11 +138,17 @@ export default function ImportStudents() {
               <div className="card-header"><h3>Import Logic</h3></div>
               <div className="card-body">
                 <ul style={{ paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                  <li>If a Student ID <strong>does not exist</strong> → a new student record is created.</li>
-                  <li>If a Student ID <strong>already exists</strong> → the student's info is updated (UPSERT).</li>
-                  <li>Existing <strong>account links</strong> and statuses are preserved on updates.</li>
-                  <li>Rows with missing <strong>ID, name, or email</strong> are skipped and logged as errors.</li>
-                  <li>Duplicate emails across different student IDs are rejected per row.</li>
+                  {importType === 'students' ? <>
+                    <li>Rows with new Student IDs are created; existing IDs are updated.</li>
+                    <li>Existing account links and statuses are preserved on updates.</li>
+                    <li>Rows missing an ID, name, or email are skipped and reported.</li>
+                    <li>Duplicate emails across different student IDs are rejected per row.</li>
+                  </> : <>
+                    <li>Rows with new email addresses create supervisor profiles; existing emails update the matching profile.</li>
+                    <li>Existing account links and internship assignments are preserved.</li>
+                    <li>Name and email are required; position and phone are optional.</li>
+                    <li>Imported profiles can be selected when assigning a student's internship supervisor.</li>
+                  </>}
                 </ul>
               </div>
             </div>
@@ -184,7 +208,7 @@ export default function ImportStudents() {
               <div className="card">
                 <div className="card-body empty-state">
                   <div style={{ fontSize: '3rem', marginBottom: 12 }}>📥</div>
-                  <p>Upload an Excel file to see import results here.</p>
+                  <p>Upload an Excel file to see {importType} import results here.</p>
                 </div>
               </div>
             )}

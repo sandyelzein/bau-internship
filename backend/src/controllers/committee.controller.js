@@ -161,18 +161,25 @@ const deleteMember = async (req, res, next) => {
 };
 
 // POST /api/committee/import — Admin only: Excel student import
-const { processStudentImport } = require('../services/import.service');
+const { processStudentImport, processSupervisorImport } = require('../services/import.service');
 
-const importStudents = async (req, res, next) => {
+const importData = async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Excel file is required' });
     }
 
-    const results = await processStudentImport(req.file.path);
+    const importType = req.body.type || 'students';
+    if (!['students', 'supervisors'].includes(importType)) {
+      return res.status(400).json({ error: 'Import type must be students or supervisors' });
+    }
+
+    const processImport = importType === 'supervisors' ? processSupervisorImport : processStudentImport;
+    const results = await processImport(req.file.path);
 
     res.json({
       message: 'Import completed',
+      type: importType,
       results,
     });
   } catch (err) {
@@ -214,6 +221,6 @@ module.exports = {
   addMember,
   updateMember,
   deleteMember,
-  importStudents,
+  importData,
   getEmailLogs,
 };

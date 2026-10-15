@@ -9,6 +9,7 @@ const { PrismaClient } = require('@prisma/client');
 const {
   sendSupervisorReminderEmail,
   sendSupervisorMissingEmail,
+  sendCompletionCertificateReminderEmail,
   sendEvaluationRequestEmail,
 } = require('./email.service');
 
@@ -184,6 +185,40 @@ async function runEvaluationRequestJob() {
   }
 }
 
+async function runCompletionCertificateReminderJob() {
+  console.log('⏰ [Scheduler] Running completion certificate reminder job…');
+
+  const internships = await prisma.internship.findMany({
+    where: {
+      status: 'COMPLETED',
+      certificateReminderSentAt: null,
+      documents: { none: { documentType: 'COMPLETION_CERTIFICATE' } },
+    },
+    include: {
+      request: { include: { student: true } },
+    },
+  });
+
+  console.log(`  Found ${internships.length} completed internship(s) missing a certificate`);
+
+  for (const internship of internships) {
+    const student = internship.request.student;
+    const sent = await sendCompletionCertificateReminderEmail({
+      studentName: student.fullName,
+      studentEmail: student.universityEmail,
+      companyName: internship.request.companyName,
+    });
+
+    if (sent) {
+      await prisma.internship.update({
+        where: { id: internship.id },
+        data: { certificateReminderSentAt: new Date() },
+      });
+      console.log(`  ✅ Certificate reminder sent → ${student.universityEmail}`);
+    }
+  }
+}
+
 // ── Initialize all cron jobs ─────────────────────────────────
 // Called once from src/index.js at startup
 
@@ -197,6 +232,9 @@ function initScheduler() {
 
     try { await runEvaluationRequestJob(); }
     catch (e) { console.error('Evaluation request job failed:', e); }
+
+    try { await runCompletionCertificateReminderJob(); }
+    catch (e) { console.error('Certificate reminder job failed:', e); }
   });
 }
 

@@ -34,7 +34,7 @@ export default function LoginPage() {
       <div className="auth-card">
         {/* Header */}
         <div className="auth-header">
-          <div className="auth-logo">BAU</div>
+          <img className="auth-logo" src="/bau-logo-blue.png" alt="Beirut Arab University" />
           <h1 className="auth-title">Internship Management System</h1>
           <p className="auth-subtitle">Faculty of Sciences – Department of Mathematics and Computer Science</p>
         </div>

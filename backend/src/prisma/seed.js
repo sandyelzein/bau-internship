@@ -59,6 +59,46 @@ async function main() {
 
   console.log('✅ Committee member created: dr.khalil@bau.edu.lb / Member@BAU2024');
 
+  // ── Sample Supervisor ──────────────────────────────────────
+  const supervisorEmail = 'mahmoud.skafi@bau.edu.lb';
+  const supervisorPasswordHash = await bcrypt.hash('Supervisor@BAU2026', 10);
+  const supervisorUser = await prisma.userAccount.upsert({
+    where: { email: supervisorEmail },
+    update: {},
+    create: {
+      email: supervisorEmail,
+      passwordHash: supervisorPasswordHash,
+      role: 'SUPERVISOR',
+    },
+  });
+
+  if (supervisorUser.role !== 'SUPERVISOR') {
+    throw new Error(`${supervisorEmail} already belongs to a non-supervisor account`);
+  }
+
+  const supervisor = await prisma.supervisor.upsert({
+    where: { email: supervisorEmail },
+    update: {},
+    create: {
+      position: 'Senior Supervisor',
+      name: 'Mahmoud Skafi',
+      email: supervisorEmail,
+      userId: supervisorUser.id,
+    },
+  });
+
+  if (supervisor.userId && supervisor.userId !== supervisorUser.id) {
+    throw new Error(`${supervisorEmail} is linked to a different account`);
+  }
+  if (!supervisor.userId) {
+    await prisma.supervisor.update({
+      where: { id: supervisor.id },
+      data: { userId: supervisorUser.id },
+    });
+  }
+
+  console.log(`✅ Supervisor created: ${supervisorEmail} / Supervisor@BAU2026`);
+
   // ── Sample Students (as if imported via Excel) ──────────────
   const sampleStudents = [
     {
@@ -102,6 +142,33 @@ async function main() {
   }
 
   console.log(`✅ ${sampleStudents.length} sample students seeded`);
+
+  const testRequest = await prisma.internshipRequest.upsert({
+    where: { requestCode: 'DEMO-SUP-2026' },
+    update: { status: 'APPROVED' },
+    create: {
+      requestCode: 'DEMO-SUP-2026',
+      companyName: 'BAU Test Internship',
+      role: 'Software Developer Intern',
+      skills: 'JavaScript, testing',
+      tasks: 'Complete a sample internship evaluation workflow.',
+      startDate: new Date('2026-09-01T00:00:00.000Z'),
+      endDate: new Date('2026-12-01T00:00:00.000Z'),
+      status: 'APPROVED',
+      studentId: '202012345',
+    },
+  });
+
+  await prisma.internship.upsert({
+    where: { requestId: testRequest.id },
+    update: { supervisorId: supervisor.id },
+    create: {
+      requestId: testRequest.id,
+      supervisorId: supervisor.id,
+    },
+  });
+
+  console.log('✅ Sample approved internship assigned to the test supervisor');
   console.log('\n🎉 Seeding complete!');
 }
 

@@ -202,17 +202,19 @@ export default function StudentDashboard() {
       </div>
 
       <style>{`
-        .student-welcome-banner { display:flex;align-items:center;justify-content:space-between;background:var(--primary);color:white;padding:24px 28px;border-radius:var(--radius-md);margin-bottom:24px;gap:16px; }
-        .student-welcome-banner h1 { font-size:1.4rem;margin-bottom:4px; }
+        .student-welcome-banner { display:flex;align-items:center;justify-content:space-between;background:linear-gradient(112deg,#0b4b78 0%,#1c7282 78%,#718449 150%);color:white;padding:28px 32px;border-radius:var(--radius-md);margin-bottom:24px;gap:16px;box-shadow:var(--shadow-md); }
+        .student-welcome-banner h1 { font-family:var(--font-display);font-size:1.65rem;font-weight:600;margin-bottom:4px; }
         .student-welcome-banner p  { font-size:0.875rem;opacity:0.85; }
+        .student-welcome-banner .btn-primary { color:#23333b;background:#f2dfb9; }
+        .student-welcome-banner .btn-primary:hover:not(:disabled) { color:#23333b;background:#e9cc91; }
         .stat-number { font-size:2rem;font-weight:800;color:var(--primary); }
         .stat-label  { font-size:0.8rem;color:var(--text-muted);margin-top:4px; }
         .info-row    { display:flex;flex-direction:column;gap:2px;padding:10px 0;border-bottom:1px solid var(--border); }
         .info-label  { font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px; }
         .info-value  { font-size:0.9rem;color:var(--text-primary); }
         .quick-actions { display:flex;gap:12px;flex-wrap:wrap; }
-        .quick-action-btn { display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 24px;background:var(--primary-pale);border-radius:var(--radius-md);text-decoration:none;color:var(--primary);font-weight:600;font-size:0.85rem;transition:all 0.15s;min-width:110px;text-align:center;border:1.5px solid transparent; }
-        .quick-action-btn:hover { background:var(--primary);color:white;text-decoration:none; }
+        .quick-action-btn { display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 24px;background:#f6f8f6;border-radius:4px;text-decoration:none;color:var(--primary);font-weight:600;font-size:0.85rem;transition:all 0.15s;min-width:110px;text-align:center;border:1px solid var(--border); }
+        .quick-action-btn:hover { background:var(--primary-pale);border-color:#aac4bf;color:var(--primary-dark);text-decoration:none;transform:translateY(-2px); }
         .quick-action-icon { font-size:1.6rem; }
         @media (max-width:600px) { .student-welcome-banner { flex-direction:column;align-items:flex-start; } }
       `}</style>

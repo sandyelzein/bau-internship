@@ -1,6 +1,101 @@
 const { PrismaClient } = require('@prisma/client');
+const crypto = require('crypto');
+const { sendSupervisorProfileInvitationEmail } = require('../services/email.service');
 
 const prisma = new PrismaClient();
+const PROFILE_SETUP_TOKEN_HOURS = 72;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+async function sendProfileSetupInvitation(supervisor) {
+  if (supervisor.userId) return false;
+
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const expiresAt = new Date(Date.now() + PROFILE_SETUP_TOKEN_HOURS * 60 * 60 * 1000);
+
+  await prisma.supervisorProfileToken.upsert({
+    where: { supervisorId: supervisor.id },
+    update: { tokenHash, expiresAt, usedAt: null },
+    create: { supervisorId: supervisor.id, tokenHash, expiresAt },
+  });
+
+  try {
+    return await sendSupervisorProfileInvitationEmail({
+      supervisorName: supervisor.name,
+      supervisorEmail: supervisor.email,
+      setupLink: `${FRONTEND_URL}/supervisor/profile/${rawToken}`,
+      expiresAt,
+    });
+  } catch (error) {
+    console.error('Supervisor profile invitation failed:', error.message);
+    return false;
+  }
+}
+
+const getProfileSetup = async (req, res, next) => {
+  try {
+    const tokenHash = crypto.createHash('sha256').update(req.params.token).digest('hex');
+    const token = await prisma.supervisorProfileToken.findUnique({
+      where: { tokenHash },
+      include: { supervisor: true },
+    });
+    if (!token || token.usedAt || token.expiresAt <= new Date() || token.supervisor.userId) {
+      return res.status(410).json({ error: 'This supervisor profile link is invalid, expired, or already used' });
+    }
+
+    res.json({
+      supervisor: {
+        name: token.supervisor.name,
+        position: token.supervisor.position,
+        email: token.supervisor.email,
+        phone: token.supervisor.phone,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const completeProfileSetup = async (req, res, next) => {
+  try {
+    const { name, position, phone } = req.body;
+    if (!name?.trim() || !position?.trim()) {
+      return res.status(400).json({ error: 'Name and position are required' });
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(req.params.token).digest('hex');
+    const token = await prisma.supervisorProfileToken.findUnique({
+      where: { tokenHash },
+      include: { supervisor: true },
+    });
+    if (!token || token.usedAt || token.expiresAt <= new Date() || token.supervisor.userId) {
+      return res.status(410).json({ error: 'This supervisor profile link is invalid, expired, or already used' });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.supervisorProfileToken.updateMany({
+        where: { id: token.id, usedAt: null, expiresAt: { gt: new Date() } },
+        data: { usedAt: new Date() },
+      });
+      if (!claimed.count) return false;
+
+      const profile = await tx.supervisor.updateMany({
+        where: { id: token.supervisorId, userId: null },
+        data: { name: name.trim(), position: position.trim(), phone: phone?.trim() || null },
+      });
+      if (!profile.count) throw new Error('A supervisor account now exists; sign in to manage your profile');
+      return true;
+    });
+
+    if (!updated) return res.status(410).json({ error: 'This supervisor profile link has already been used' });
+    res.json({ message: 'Your supervisor profile has been confirmed successfully' });
+  } catch (error) {
+    if (error.message.includes('supervisor account now exists')) {
+      return res.status(409).json({ error: error.message });
+    }
+    next(error);
+  }
+};
 
 async function findStudentInternship(studentId) {
   return prisma.internship.findFirst({
@@ -20,8 +115,8 @@ const getMySupervisor = async (req, res, next) => {
 
 const createMySupervisor = async (req, res, next) => {
   try {
-    const { title, name, email, phone } = req.body;
-    if (!title?.trim() || !name?.trim() || !email?.trim()) return res.status(400).json({ error: 'Supervisor title, name, and email are required' });
+    const { position, name, email, phone } = req.body;
+    if (!position?.trim() || !name?.trim() || !email?.trim()) return res.status(400).json({ error: 'Supervisor position, name, and email are required' });
     const internship = await findStudentInternship(req.user.student?.studentId);
     if (!internship) return res.status(404).json({ error: 'No approved internship found' });
     if (internship.supervisor) return res.status(409).json({ error: 'A supervisor is already assigned' });
@@ -29,11 +124,17 @@ const createMySupervisor = async (req, res, next) => {
     const normalizedEmail = email.trim().toLowerCase();
     let supervisor = await prisma.supervisor.findUnique({ where: { email: normalizedEmail } });
     if (!supervisor) {
-      supervisor = await prisma.supervisor.create({ data: { title: title.trim(), name: name.trim(), email: normalizedEmail, phone: phone?.trim() || null } });
+      supervisor = await prisma.supervisor.create({ data: { position: position.trim(), name: name.trim(), email: normalizedEmail, phone: phone?.trim() || null } });
     }
     await prisma.internship.update({ where: { id: internship.id }, data: { supervisorId: supervisor.id } });
+    const invitationSent = await sendProfileSetupInvitation(supervisor);
     res.status(201).json({
-      message: supervisor.userId ? 'Supervisor assigned successfully' : 'Supervisor saved. They can now create an account using this email.',
+      message: supervisor.userId
+        ? 'Supervisor assigned successfully'
+        : invitationSent
+          ? 'Supervisor saved and a secure profile link was emailed to them.'
+          : 'Supervisor saved, but the profile link email could not be sent. Please check the email configuration and try again.',
+      invitationSent,
       supervisor,
     });
   } catch (err) { next(err); }
@@ -41,16 +142,23 @@ const createMySupervisor = async (req, res, next) => {
 
 const updateMySupervisor = async (req, res, next) => {
   try {
-    const { title, name, email, phone } = req.body;
-    if (!title?.trim() || !name?.trim() || !email?.trim()) return res.status(400).json({ error: 'Supervisor title, name, and email are required' });
+    const { position, name, email, phone } = req.body;
+    if (!position?.trim() || !name?.trim() || !email?.trim()) return res.status(400).json({ error: 'Supervisor position, name, and email are required' });
     const internship = await findStudentInternship(req.user.student?.studentId);
     if (!internship?.supervisor) return res.status(404).json({ error: 'No supervisor found to update' });
     if (internship.supervisor.userId) return res.status(403).json({ error: 'This supervisor has activated their account; contact an administrator to change their profile' });
     const updated = await prisma.supervisor.update({
       where: { id: internship.supervisor.id },
-      data: { title: title.trim(), name: name.trim(), email: email.trim().toLowerCase(), phone: phone?.trim() || null },
+      data: { position: position.trim(), name: name.trim(), email: email.trim().toLowerCase(), phone: phone?.trim() || null },
     });
-    res.json({ message: 'Supervisor information updated', supervisor: updated });
+    const invitationSent = await sendProfileSetupInvitation(updated);
+    res.json({
+      message: invitationSent
+        ? 'Supervisor information updated and a secure profile link was emailed to them.'
+        : 'Supervisor information updated, but the profile link email could not be sent. Please check the email configuration and try again.',
+      invitationSent,
+      supervisor: updated,
+    });
   } catch (err) { next(err); }
 };
 
@@ -105,4 +213,4 @@ const submitAuthenticatedEvaluation = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { getMySupervisor, createMySupervisor, updateMySupervisor, getSupervisorByInternship, getAssignedInternships, submitAuthenticatedEvaluation };
+module.exports = { getMySupervisor, createMySupervisor, updateMySupervisor, getSupervisorByInternship, getAssignedInternships, submitAuthenticatedEvaluation, getProfileSetup, completeProfileSetup };

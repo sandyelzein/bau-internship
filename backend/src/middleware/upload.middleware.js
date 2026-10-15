@@ -2,6 +2,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const MAX_FILE_SIZE = (parseInt(process.env.MAX_FILE_SIZE_MB) || 10) * 1024 * 1024;
 
@@ -56,7 +57,7 @@ const evidenceStorage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const studentId = req.user?.student?.studentId || 'unknown';
-    cb(null, `${studentId}_${Date.now()}${path.extname(file.originalname).toLowerCase()}`);
+    cb(null, `${studentId}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}${path.extname(file.originalname).toLowerCase()}`);
   },
 });
 

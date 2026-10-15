@@ -56,7 +56,7 @@ const login = async (req, res, next) => {
         ? {
             supervisorId: user.supervisor?.id,
             fullName: user.supervisor?.name,
-            title: user.supervisor?.title,
+            position: user.supervisor?.position,
             email: user.email,
           }
         : {
@@ -120,7 +120,7 @@ const registerSupervisor = async (req, res, next) => {
       profile: {
         supervisorId: result.supervisor.id,
         fullName: result.supervisor.name,
-        title: result.supervisor.title,
+        position: result.supervisor.position,
         email: result.userAccount.email,
       },
     });
@@ -238,7 +238,7 @@ const getMe = async (req, res) => {
       ? {
           supervisorId: user.supervisor?.id,
           fullName: user.supervisor?.name,
-          title: user.supervisor?.title,
+          position: user.supervisor?.position,
           email: user.email,
         }
       : {

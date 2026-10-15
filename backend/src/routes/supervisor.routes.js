@@ -8,8 +8,14 @@ const {
   getSupervisorByInternship,
   getAssignedInternships,
   submitAuthenticatedEvaluation,
+  getProfileSetup,
+  completeProfileSetup,
 } = require('../controllers/supervisor.controller');
 const { authenticate, requireStudent, requireCommittee, requireSupervisor } = require('../middleware/auth.middleware');
+
+// Public one-time supervisor profile setup link
+router.get('/profile/:token', getProfileSetup);
+router.post('/profile/:token', completeProfileSetup);
 
 // Student endpoints
 router.get('/my',   authenticate, requireStudent, getMySupervisor);

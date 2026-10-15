@@ -105,12 +105,14 @@ C:\Projects\bau-internship      (Windows)
 
 ---
 
-### Step 2 — Create the PostgreSQL Database
+### Step 2 — Start the Local PostgreSQL Database
 
-Open **pgAdmin** or **psql** and run:
-```sql
-CREATE DATABASE bau_internship;
+Install Docker Desktop, then from the project root run:
+```bash
+docker compose up -d db
 ```
+
+This starts PostgreSQL 16 on localhost and stores its data in a persistent Docker volume. The credentials are for local development only. If you already have PostgreSQL installed, create a database named `bau_internship` and set `DATABASE_URL` in `backend/.env` to match your local credentials instead.
 
 ---
 
@@ -149,10 +151,10 @@ npm install
 ### Step 5 — Run Database Migrations
 
 ```bash
-npx prisma migrate dev --name init
+npx prisma migrate dev
 ```
 
-This creates all tables in PostgreSQL. If asked for a migration name, type `init`.
+This applies the migrations already committed in `backend/prisma/migrations` and creates the tables in PostgreSQL.
 
 ---
 
@@ -165,6 +167,8 @@ npm run db:seed
 This creates:
 - **Admin account**: `admin@bau.edu.lb` / `Admin@BAU2024`
 - **Committee member**: `dr.khalil@bau.edu.lb` / `Member@BAU2024`
+- **Supervisor account**: `mahmoud.skafi@bau.edu.lb` / `Supervisor@BAU2026`
+- **One approved sample internship** assigned to the supervisor account
 - **3 sample students** (pre-imported, no accounts yet)
 
 ---
@@ -206,6 +210,7 @@ Open your browser at: **http://localhost:5173**
 |---------------|----------------------------------|------------------|
 | Admin         | admin@bau.edu.lb                 | Admin@BAU2024    |
 | Committee     | dr.khalil@bau.edu.lb             | Member@BAU2024   |
+| Supervisor    | mahmoud.skafi@bau.edu.lb         | Supervisor@BAU2026 |
 | Student*      | Register using Student ID below  | —                |
 
 **Sample Student IDs for registration:**

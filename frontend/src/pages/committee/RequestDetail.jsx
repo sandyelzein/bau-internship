@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import StatusBadge from '../../components/common/StatusBadge';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
 
 const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
@@ -11,6 +12,7 @@ const formatYear = value => value ? (/year/i.test(String(value)) ? value : `Year
 export default function RequestDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
 
   const [request, setRequest]         = useState(null);
   const [loading, setLoading]         = useState(true);
@@ -68,7 +70,10 @@ export default function RequestDetail() {
   if (!request) return <><Navbar /><div className="page-container"><div className="alert alert-error">Request not found.</div></div></>;
 
   const isPending = request.status === 'PENDING';
-  const shorterThanTwoWeeks = request.durationWeeks < 2;
+  const shorterThanOneYear = request.durationWeeks < 52;
+  const completionCertificates = request.internship?.documents?.filter(
+    document => document.documentType === 'COMPLETION_CERTIFICATE'
+  ) || [];
 
   return (
     <>
@@ -92,9 +97,9 @@ export default function RequestDetail() {
                 <StatusBadge status={request.status} />
               </div>
               <div className="card-body">
-                {shorterThanTwoWeeks && (
+                {shorterThanOneYear && (
                   <div className="alert alert-warning">
-                    ⚠️ This internship is shorter than two weeks ({request.durationWeeks} weeks). Review the duration before making the final decision.
+                    ⚠️ This internship is shorter than one year ({request.durationWeeks} weeks). Review the duration before making the final decision.
                   </div>
                 )}
                 {[
@@ -129,7 +134,13 @@ export default function RequestDetail() {
                   <span className="detail-label">Tasks</span>
                   <span className="detail-value" style={{ whiteSpace: 'pre-wrap' }}>{request.tasks || '—'}</span>
                 </div>
-                {request.evidenceFilePath && (
+                {request.attachments?.map(attachment => (
+                  <div className="detail-row" key={attachment.id}>
+                    <span className="detail-label">{attachment.type === 'ACCEPTANCE_LETTER' ? 'Acceptance Letter or Email' : 'Official Internship Tasks'}</span>
+                    <a className="btn btn-secondary btn-sm" href={`${BACKEND_URL}/uploads/${attachment.filePath}`} target="_blank" rel="noreferrer">View {attachment.fileName}</a>
+                  </div>
+                ))}
+                {!request.attachments?.length && request.evidenceFilePath && (
                   <div className="detail-row">
                     <span className="detail-label">Task Evidence</span>
                     <a className="btn btn-secondary btn-sm" href={`${BACKEND_URL}/uploads/${request.evidenceFilePath}`} target="_blank" rel="noreferrer">View {request.evidenceFileName}</a>
@@ -153,10 +164,27 @@ export default function RequestDetail() {
                 </div>
                 <div className="card-body">
                   <div className="form-group">
+                    <label>Completion Certificate</label>
+                    {completionCertificates.length ? completionCertificates.map(certificate => (
+                      <div key={certificate.id} style={{ marginBottom: 8 }}>
+                        <a className="btn btn-secondary btn-sm" href={`${BACKEND_URL}/uploads/${certificate.filePath}`} target="_blank" rel="noreferrer">
+                          Review {certificate.fileName}
+                        </a>
+                      </div>
+                    )) : <p style={{ color: 'var(--text-muted)' }}>No completion certificate uploaded.</p>}
+                  </div>
+                  {isAdmin && completionCertificates.length === 0 && (
+                    <div className="alert alert-warning">A completion certificate is required before you can mark this internship complete.</div>
+                  )}
+                  <div className="form-group">
                     <label>Update Internship Status</label>
                     <select value={internshipStatus} onChange={e => setIntStatus(e.target.value)}>
                       <option value="IN_PROGRESS">In Progress</option>
-                      <option value="COMPLETED">Completed</option>
+                      {(isAdmin || request.internship.status === 'COMPLETED') && (
+                        <option value="COMPLETED" disabled={!isAdmin || completionCertificates.length === 0}>
+                          Completed
+                        </option>
+                      )}
                       <option value="NOT_COMPLETED">Not Completed</option>
                     </select>
                   </div>

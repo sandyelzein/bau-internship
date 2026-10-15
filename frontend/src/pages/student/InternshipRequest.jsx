@@ -18,7 +18,8 @@ export default function InternshipRequest() {
   const [error, setError]     = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const [evidence, setEvidence] = useState(null);
+  const [acceptanceLetter, setAcceptanceLetter] = useState(null);
+  const [taskDocuments, setTaskDocuments] = useState([]);
   const [requestsOpen, setRequestsOpen] = useState(true);
   const [settingsLoading, setSettingsLoading] = useState(true);
 
@@ -44,7 +45,8 @@ export default function InternshipRequest() {
     try {
       const payload = new FormData();
       Object.entries(form).forEach(([key, value]) => payload.append(key, value));
-      payload.append('evidence', evidence);
+      payload.append('acceptanceLetter', acceptanceLetter);
+      taskDocuments.forEach(file => payload.append('taskDocuments', file));
       const res = await api.post('/internships/requests', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
       setSuccess(
         `Request submitted! Your Request ID is: ${res.data.request.requestCode}`
@@ -98,9 +100,15 @@ export default function InternshipRequest() {
               </div>
 
               <div className="form-group">
-                <label>Task Confirmation <span style={{ color: 'var(--danger)' }}>*</span></label>
-                <input type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" onChange={e => setEvidence(e.target.files[0])} required />
-                <small style={{ color: 'var(--text-muted)' }}>Upload the company task letter or a screenshot of the confirming email (PDF, PNG, or JPG; max 10 MB).</small>
+                <label>Acceptance Letter or Email <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" onChange={e => setAcceptanceLetter(e.target.files[0])} required />
+                <small style={{ color: 'var(--text-muted)' }}>Upload the company acceptance letter or a screenshot of the acceptance email (PDF, PNG, or JPG; max 10 MB).</small>
+              </div>
+
+              <div className="form-group">
+                <label>Official Internship Tasks to Be Fulfilled <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" multiple onChange={e => setTaskDocuments(Array.from(e.target.files))} required />
+                <small style={{ color: 'var(--text-muted)' }}>Upload one or more official task documents (PDF, PNG, or JPG; max 10 MB each, up to 10 files).</small>
               </div>
 
               <div className="form-group">

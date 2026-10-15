@@ -9,7 +9,7 @@ export default function SupervisorForm() {
 
   const [existing, setExisting]   = useState(null);  // existing supervisor or null
   const [loading, setLoading]     = useState(true);
-  const [form, setForm]           = useState({ title: '', name: '', email: '', phone: '' });
+  const [form, setForm]           = useState({ position: '', name: '', email: '', phone: '' });
   const [saving, setSaving]       = useState(false);
   const [success, setSuccess]     = useState('');
   const [error, setError]         = useState('');
@@ -20,10 +20,10 @@ export default function SupervisorForm() {
         if (res.data.supervisor) {
           setExisting(res.data.supervisor);
           setForm({
-            title: res.data.supervisor.title || '',
-            name:  res.data.supervisor.name,
-            email: res.data.supervisor.email,
-            phone: res.data.supervisor.phone || '',
+            position: res.data.supervisor.position || '',
+            name:     res.data.supervisor.name,
+            email:    res.data.supervisor.email,
+            phone:    res.data.supervisor.phone || '',
           });
         }
       })
@@ -42,11 +42,11 @@ export default function SupervisorForm() {
     setError(''); setSuccess(''); setSaving(true);
     try {
       if (existing) {
-        await api.patch('/supervisor/my', form);
-        setSuccess('Supervisor information updated successfully.');
+        const res = await api.patch('/supervisor/my', form);
+        setSuccess(res.data.message || 'Supervisor information updated successfully.');
       } else {
-        await api.post('/supervisor/my', form);
-        setSuccess('Supervisor information saved successfully.');
+        const res = await api.post('/supervisor/my', form);
+        setSuccess(res.data.message || 'Supervisor information saved successfully.');
         setExisting(form); // treat as existing now
       }
     } catch (err) {
@@ -91,8 +91,8 @@ export default function SupervisorForm() {
 
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label>Supervisor Title <span style={{ color: 'var(--danger)' }}>*</span></label>
-                <input name="title" value={form.title} onChange={handleChange} placeholder="e.g. Engineering Manager, Dr., Ms." required />
+                <label>Supervisor Position <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input name="position" value={form.position} onChange={handleChange} placeholder="e.g. Engineering Manager, Senior Developer" required />
               </div>
               <div className="form-group">
                 <label>Supervisor Full Name <span style={{ color: 'var(--danger)' }}>*</span></label>

@@ -46,7 +46,7 @@ function bauWrapper(bodyHtml) {
 }
 
 // ── Core send + log ──────────────────────────────────────────
-async function sendEmail({ to, subject, html, triggerType }) {
+async function sendEmail({ to, subject, html, logHtml, triggerType }) {
   const transporter = createTransporter();
   let status = 'SENT';
   let errorMessage = null;
@@ -61,7 +61,7 @@ async function sendEmail({ to, subject, html, triggerType }) {
   }
 
   await prisma.emailLog.create({
-    data: { recipient: to, subject, body: html, status, errorMessage, triggerType },
+    data: { recipient: to, subject, body: logHtml || html, status, errorMessage, triggerType },
   });
 
   return status === 'SENT';
@@ -143,6 +143,47 @@ async function sendSupervisorMissingEmail({ studentName, studentEmail, companyNa
   return sendEmail({ to: studentEmail, subject, html, triggerType: 'SUPERVISOR_MISSING' });
 }
 
+async function sendSupervisorProfileInvitationEmail({ supervisorName, supervisorEmail, setupLink, expiresAt }) {
+  const subject = 'Confirm Your Supervisor Profile – BAU Internship System';
+  const html = bauWrapper(`
+    <h2 style="color: #003571;">Hello ${supervisorName},</h2>
+    <p>A BAU internship student has listed you as their internship supervisor.</p>
+    <p>Use the secure link below to confirm your name, position, and contact details.</p>
+    <a href="${setupLink}"
+       style="display:inline-block;background:#003571;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:10px;">
+      Confirm Supervisor Profile
+    </a>
+    <p style="color:#666;font-size:13px;margin-top:20px;">
+      This link expires ${new Date(expiresAt).toLocaleString()} and can only be used once.
+      If you were not expecting this email, you can ignore it.
+    </p>
+  `);
+  return sendEmail({
+    to: supervisorEmail,
+    subject,
+    html,
+    logHtml: bauWrapper('<p>Secure supervisor profile link sent. The link token is not stored in email logs.</p>'),
+    triggerType: 'SUPERVISOR_PROFILE_INVITATION',
+  });
+}
+
+async function sendCompletionCertificateReminderEmail({ studentName, studentEmail, companyName }) {
+  const subject = 'Completion Certificate Required – BAU Internship System';
+  const html = bauWrapper(`
+    <h2 style="color: #003571;">Dear ${studentName},</h2>
+    <p>Your internship at <strong>${companyName}</strong> has been marked as completed.</p>
+    <div style="background:#fff3cd;padding:15px;border-left:4px solid #ffc107;margin:20px 0;">
+      <strong>Action Required:</strong> Please upload your internship completion certificate.
+    </div>
+    <p>Log in to the BAU Internship System and upload the certificate under My Internships.</p>
+    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/student/documents"
+       style="display:inline-block;background:#003571;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:10px;">
+      Upload Completion Certificate
+    </a>
+  `);
+  return sendEmail({ to: studentEmail, subject, html, triggerType: 'CERTIFICATE_REMINDER' });
+}
+
 // ── NEW: Evaluation request (sent to supervisor) ─────────────
 async function sendEvaluationRequestEmail({
   supervisorName,
@@ -199,5 +240,7 @@ module.exports = {
   sendRejectionEmail,
   sendSupervisorReminderEmail,
   sendSupervisorMissingEmail,
+  sendSupervisorProfileInvitationEmail,
+  sendCompletionCertificateReminderEmail,
   sendEvaluationRequestEmail,
 };

@@ -22,7 +22,10 @@ const { uploadEvidence } = require('../middleware/upload.middleware');
 // Student routes
 router.get('/settings', authenticate, getRequestSettings);
 router.patch('/settings', authenticate, requireAdmin, updateRequestSettings);
-router.post('/requests', authenticate, requireStudent, uploadEvidence.single('evidence'), submitRequest);
+router.post('/requests', authenticate, requireStudent, uploadEvidence.fields([
+  { name: 'acceptanceLetter', maxCount: 1 },
+  { name: 'taskDocuments', maxCount: 10 },
+]), submitRequest);
 router.get('/requests/my', authenticate, requireStudent, getMyRequests);
 
 // Shared (student sees own, committee sees all)
