@@ -23,6 +23,8 @@ export default function SupervisorRegisterPage() {
       const serverError = err.response?.data?.error;
       if (serverError === 'An account already exists for this supervisor') {
         setError('An account already exists for this supervisor. Please sign in instead.');
+      } else if (err.response?.status === 404) {
+        setError('No supervisor profile was found for this email. Ask the student or an administrator to add your supervisor profile before creating an account.');
       } else if (!err.response) {
         setError('Cannot reach the server. Check VITE_API_BASE_URL on the frontend and FRONTEND_URL on the backend, then redeploy both services.');
       } else {
@@ -41,7 +43,7 @@ export default function SupervisorRegisterPage() {
         </div>
         <div className="auth-body">
           <h2 className="auth-form-title">Create Your Account</h2>
-          <p className="auth-info">Use the same email address that the student entered for you.</p>
+          <p className="auth-info">Create an account with the email entered by the student after your supervisor profile has been added.</p>
           {error && <div className="alert alert-error">{error}</div>}
           <form onSubmit={submit}>
             <div className="form-group"><label>Email Address</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required /></div>

@@ -2,7 +2,12 @@
 
 .auth-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #edf2ef 0%, #f7f8f5 55%, #e4ece9 100%);
+  background-color: #eff3ef;
+  background-image:
+    linear-gradient(132deg, rgba(11, 75, 120, 0.045) 1px, transparent 1px),
+    linear-gradient(42deg, rgba(189, 139, 57, 0.035) 1px, transparent 1px),
+    linear-gradient(135deg, #e8efeb 0%, #f7f8f5 56%, #e4ece9 100%);
+  background-size: 44px 44px, 44px 44px, 100% 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14,42 +19,53 @@
   border-radius: 8px;
   box-shadow: var(--shadow-lg);
   width: 100%;
-  max-width: 440px;
+  max-width: 930px;
   overflow: hidden;
   border: 1px solid rgba(11, 75, 120, 0.12);
+  display: grid;
+  grid-template-columns: minmax(280px, 0.86fr) minmax(360px, 1fr);
 }
 
-.auth-card-wide { max-width: 600px; }
+.auth-card-wide { max-width: 1040px; }
 
 .auth-header {
-  background: #fff;
-  padding: 26px 32px 20px;
-  text-align: center;
-  border-bottom: 1px solid var(--border);
+  background: linear-gradient(145deg, #073452 0%, #0b4b78 60%, #21656e 120%);
+  padding: 42px 36px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  border-right: 3px solid var(--accent);
 }
 
 .auth-logo {
   display: block;
-  width: min(100%, 270px);
+  width: min(100%, 214px);
   height: auto;
-  margin: 0 auto 14px;
+  padding: 9px 10px;
+  background: #fff;
+  margin: 0 0 28px;
+  border-radius: 3px;
 }
 
 .auth-title {
-  color: var(--primary-dark);
+  color: #fff;
   font-family: var(--font-display);
   font-size: 1.35rem;
   font-weight: 600;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .auth-subtitle {
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.76);
   font-size: 0.78rem;
 }
 
 .auth-body {
-  padding: 32px;
+  padding: 44px 48px;
+  align-self: center;
+  width: 100%;
 }
 
 .auth-form-title {
@@ -77,3 +93,17 @@
 }
 
 .required { color: var(--danger); }
+
+@media (max-width: 700px) {
+  .auth-page { align-items: flex-start; padding: 16px; }
+  .auth-card,
+  .auth-card-wide { max-width: 480px; margin: auto; grid-template-columns: 1fr; }
+  .auth-header { padding: 24px 24px 20px; align-items: center; text-align: center; border-right: 0; border-bottom: 3px solid var(--accent); }
+  .auth-logo { width: min(100%, 185px); margin: 0 0 12px; }
+  .auth-body { padding: 26px 24px 30px; }
+}
+
+@media (max-width: 380px) {
+  .auth-page { padding: 10px; }
+  .auth-body { padding: 22px 18px 26px; }
+}
