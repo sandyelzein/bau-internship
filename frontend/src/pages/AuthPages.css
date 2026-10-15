@@ -43,10 +43,10 @@
   display: block;
   width: min(100%, 214px);
   height: auto;
-  padding: 9px 10px;
-  background: #fff;
+  padding: 0;
+  background: transparent;
   margin: 0 0 28px;
-  border-radius: 3px;
+  filter: brightness(0) invert(1);
 }
 
 .auth-title {
