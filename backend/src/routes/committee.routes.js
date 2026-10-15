@@ -6,7 +6,7 @@ const {
   addMember,
   updateMember,
   deleteMember,
-  importStudents,
+  importData,
   getEmailLogs,
 } = require('../controllers/committee.controller');
 const {
@@ -22,13 +22,13 @@ router.post('/members', authenticate, requireAdmin, addMember);
 router.patch('/members/:id', authenticate, requireAdmin, updateMember);
 router.delete('/members/:id', authenticate, requireAdmin, deleteMember);
 
-// Admin-only: student Excel import
+// Admin-only: student and supervisor Excel imports
 router.post(
   '/import',
   authenticate,
   requireAdmin,
   uploadExcel.single('file'),
-  importStudents
+  importData
 );
 
 // Committee: email logs

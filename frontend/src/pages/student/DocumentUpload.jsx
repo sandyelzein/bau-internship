@@ -22,14 +22,19 @@ export default function DocumentUpload() {
 
   const load = () => api.get('/documents/my-internships').then(res => {
     setInternships(res.data);
-    const firstCompleted = res.data.find(item => item.status === 'COMPLETED');
-    setSelectedId(current => current || (firstCompleted ? String(firstCompleted.id) : ''));
+    const firstAvailable = res.data.find(item => item.status === 'COMPLETED')
+      || res.data.find(item => item.status === 'IN_PROGRESS');
+    setSelectedId(current => current || (firstAvailable ? String(firstAvailable.id) : ''));
   });
   useEffect(() => { load().catch(console.error).finally(() => setLoading(false)); }, []);
 
   const upload = async (event) => {
     event.preventDefault();
-    if (!selectedId || !file) return setError('Select a completed internship and PDF file');
+    if (!selectedId || !file) return setError('Select an internship and PDF file');
+    const selectedInternship = internships.find(item => String(item.id) === selectedId);
+    if (docType !== 'COMPLETION_CERTIFICATE' && selectedInternship?.status !== 'COMPLETED') {
+      return setError('This document can only be uploaded after the internship is completed');
+    }
     const payload = new FormData();
     payload.append('documentType', docType); payload.append('internshipId', selectedId); payload.append('file', file);
     setUploading(true); setError(''); setMessage('');
@@ -46,9 +51,12 @@ export default function DocumentUpload() {
     catch (err) { setError(err.response?.data?.error || 'Delete failed'); }
   };
 
+  const availableInternships = internships.filter(item => ['IN_PROGRESS', 'COMPLETED'].includes(item.status));
+  const selectedInternship = internships.find(item => String(item.id) === selectedId);
+
   return <><Navbar /><div className="page-container">
     <h1 className="page-title">My Internships</h1>
-    <div className="alert alert-info">Internship status and documents belong to each internship. Uploads unlock only after that internship is marked completed.</div>
+    <div className="alert alert-info">Upload your completion certificate for an internship in progress so the administrator can review it. Other documents are available after completion.</div>
     {message && <div className="alert alert-success">{message}</div>}
     {error && <div className="alert alert-error">{error}</div>}
 
@@ -60,7 +68,7 @@ export default function DocumentUpload() {
         <div className="card-body">
           <p><strong>Request:</strong> {item.request.requestCode}</p>
           <p><strong>Dates:</strong> {new Date(item.request.startDate).toLocaleDateString()} – {new Date(item.request.endDate).toLocaleDateString()}</p>
-          <p style={{ marginBottom: 14 }}><strong>Supervisor:</strong> {item.supervisor ? `${item.supervisor.title || ''} ${item.supervisor.name}`.trim() : 'Not added'}</p>
+          <p style={{ marginBottom: 14 }}><strong>Supervisor:</strong> {item.supervisor ? `${item.supervisor.name}${item.supervisor.position ? ` · ${item.supervisor.position}` : ''}` : 'Not added'}</p>
           {item.documents.length === 0 ? <p style={{ color: 'var(--text-muted)' }}>No documents uploaded for this internship.</p> : item.documents.map(doc => <div key={doc.id} className="flex-between" style={{ borderTop: '1px solid var(--border)', padding: '10px 0', gap: 12 }}>
             <div><strong>{DOC_TYPES.find(type => type.value === doc.documentType)?.label || doc.documentType}</strong><div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>{doc.fileName}</div></div>
             <div className="flex gap-8"><a className="btn btn-secondary btn-sm" href={`${BACKEND_URL}/uploads/${doc.filePath}`} target="_blank" rel="noreferrer">View</a><button className="btn btn-danger btn-sm" onClick={() => remove(doc.id)}>Delete</button></div>
@@ -69,11 +77,15 @@ export default function DocumentUpload() {
       </div>)}
 
       <div className="card" style={{ maxWidth: 640 }}>
-        <div className="card-header"><h3>Upload Completed Internship Document</h3></div>
+        <div className="card-header"><h3>Upload Internship Document</h3></div>
         <div className="card-body">
-          {!internships.some(item => item.status === 'COMPLETED') ? <div className="alert alert-warning">🔒 Uploading is unavailable until an administrator marks an internship completed.</div> : <form onSubmit={upload}>
-            <div className="form-group"><label>Completed Internship</label><select value={selectedId} onChange={e => setSelectedId(e.target.value)} required><option value="">Select</option>{internships.filter(item => item.status === 'COMPLETED').map(item => <option value={item.id} key={item.id}>{item.request.companyName} · {item.request.requestCode}</option>)}</select></div>
-            <div className="form-group"><label>Document Type</label><select value={docType} onChange={e => setDocType(e.target.value)}>{DOC_TYPES.map(type => <option key={type.value} value={type.value}>{type.label}</option>)}</select></div>
+          {!availableInternships.length ? <div className="alert alert-warning">There are no in-progress or completed internships available for document upload.</div> : <form onSubmit={upload}>
+            <div className="form-group"><label>Internship</label><select value={selectedId} onChange={e => {
+              const nextInternship = internships.find(item => String(item.id) === e.target.value);
+              setSelectedId(e.target.value);
+              if (nextInternship?.status === 'IN_PROGRESS') setDocType('COMPLETION_CERTIFICATE');
+            }} required><option value="">Select</option>{availableInternships.map(item => <option value={item.id} key={item.id}>{item.request.companyName} · {item.request.requestCode} · {item.status === 'COMPLETED' ? 'Completed' : 'In Progress'}</option>)}</select></div>
+            <div className="form-group"><label>Document Type</label><select value={docType} onChange={e => setDocType(e.target.value)}>{DOC_TYPES.map(type => <option key={type.value} value={type.value} disabled={type.value !== 'COMPLETION_CERTIFICATE' && selectedInternship?.status !== 'COMPLETED'}>{type.label}</option>)}</select></div>
             <div className="form-group"><label>PDF File</label><input ref={fileRef} type="file" accept=".pdf,application/pdf" onChange={e => setFile(e.target.files[0])} required /></div>
             <button className="btn btn-primary" disabled={uploading}>{uploading ? 'Uploading…' : 'Upload Document'}</button>
           </form>}

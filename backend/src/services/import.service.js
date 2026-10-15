@@ -196,4 +196,90 @@ async function processStudentImport(filePath) {
   return results;
 }
 
-module.exports = { processStudentImport };
+async function processSupervisorImport(filePath) {
+  const results = { total: 0, inserted: 0, updated: 0, skipped: 0, errors: [] };
+  let workbook;
+
+  try {
+    workbook = XLSX.readFile(filePath, { cellDates: true });
+  } catch (e) {
+    return { ...results, errors: [`Failed to read Excel file: ${e.message}`] };
+  }
+
+  if (!workbook.SheetNames?.length) {
+    return { ...results, errors: ['Excel file contains no sheets'] };
+  }
+
+  const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: '' });
+  if (!rawRows.length || !rawRows[0].length) {
+    return { ...results, errors: ['Excel sheet is empty or has no header row'] };
+  }
+
+  const headers = rawRows[0].map(normalizeHeader);
+  const missing = ['NAME', 'EMAIL'].filter(column => !headers.includes(column));
+  if (missing.length) {
+    return {
+      ...results,
+      errors: [`Missing required column(s): ${missing.join(', ')}. Expected: NAME, EMAIL, POSITION, PHONE`],
+    };
+  }
+
+  const rows = rawRows.slice(1);
+  if (!rows.length) return { ...results, errors: ['Excel file has headers but no data rows'] };
+  results.total = rows.length;
+
+  for (let index = 0; index < rows.length; index++) {
+    const rawRow = rows[index];
+    const rowNumber = index + 2;
+    if (rawRow.every(cell => cell === '' || cell === null || cell === undefined)) {
+      results.total--;
+      continue;
+    }
+
+    const row = {};
+    headers.forEach((header, columnIndex) => {
+      row[header] = rawRow[columnIndex] ?? '';
+    });
+
+    const name = String(row.NAME || '').trim();
+    const email = String(row.EMAIL || '').trim().toLowerCase();
+    if (!name || !email) {
+      results.errors.push(`Row ${rowNumber}: Name and email are required`);
+      results.skipped++;
+      continue;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      results.errors.push(`Row ${rowNumber}: Invalid email address ${email}`);
+      results.skipped++;
+      continue;
+    }
+
+    const position = String(row.POSITION || '').trim() || null;
+    const phone = String(row.PHONE || '').trim() || null;
+
+    try {
+      const existing = await prisma.supervisor.findUnique({ where: { email } });
+      if (existing) {
+        await prisma.supervisor.update({
+          where: { id: existing.id },
+          data: {
+            name,
+            position: position ?? existing.position,
+            phone: phone ?? existing.phone,
+          },
+        });
+        results.updated++;
+      } else {
+        await prisma.supervisor.create({ data: { name, email, position, phone } });
+        results.inserted++;
+      }
+    } catch (err) {
+      results.errors.push(`Row ${rowNumber}: Database error – ${err.message}`);
+      results.skipped++;
+    }
+  }
+
+  return results;
+}
+
+module.exports = { processStudentImport, processSupervisorImport };

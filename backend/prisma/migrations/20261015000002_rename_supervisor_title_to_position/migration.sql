@@ -1,0 +1,1 @@
+ALTER TABLE "supervisors" RENAME COLUMN "title" TO "position";

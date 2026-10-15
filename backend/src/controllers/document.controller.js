@@ -35,9 +35,13 @@ const uploadDocument = async (req, res, next) => {
       if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(404).json({ error: 'Internship not found' });
     }
-    if (internship.status !== 'COMPLETED') {
+    const certificateCanBeSubmitted = documentType === 'COMPLETION_CERTIFICATE'
+      && internship.status === 'IN_PROGRESS';
+    if (internship.status !== 'COMPLETED' && !certificateCanBeSubmitted) {
       if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-      return res.status(403).json({ error: 'Documents can only be uploaded after the internship is completed' });
+      return res.status(403).json({ error: documentType === 'COMPLETION_CERTIFICATE'
+        ? 'A completion certificate can be uploaded while the internship is in progress or completed'
+        : 'This document can only be uploaded after the internship is completed' });
     }
 
     // Build a relative path to store in DB (relative to /uploads)
@@ -80,7 +84,7 @@ const getMyInternships = async (req, res, next) => {
       include: {
         request: { select: { requestCode: true, companyName: true, role: true, startDate: true, endDate: true } },
         documents: { orderBy: { uploadedAt: 'desc' } },
-        supervisor: { select: { id: true, title: true, name: true, email: true } },
+        supervisor: { select: { id: true, position: true, name: true, email: true } },
       },
       orderBy: { createdAt: 'desc' },
     });

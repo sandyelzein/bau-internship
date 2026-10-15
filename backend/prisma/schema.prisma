@@ -124,8 +124,29 @@ model InternshipRequest {
   reviewedBy   CommitteeMember? @relation(fields: [reviewedById], references: [id])
 
   internship Internship?
+  attachments RequestAttachment[]
 
   @@map("internship_requests")
+}
+
+model RequestAttachment {
+  id        Int                   @id @default(autoincrement())
+  type      RequestAttachmentType
+  fileName  String
+  filePath  String
+  fileSize  Int
+  createdAt DateTime              @default(now())
+
+  requestId Int
+  request   InternshipRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("request_attachments")
+}
+
+enum RequestAttachmentType {
+  ACCEPTANCE_LETTER
+  OFFICIAL_TASKS
 }
 
 enum RequestStatus {
@@ -143,6 +164,7 @@ model Internship {
   id               Int              @id @default(autoincrement())
   status           InternshipStatus @default(IN_PROGRESS)
   evaluationStatus EvaluationStatus @default(NOT_SENT)
+  certificateReminderSentAt DateTime?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
@@ -170,7 +192,7 @@ enum EvaluationStatus {
 // ─────────────────────────────────────────
 model Supervisor {
   id          Int      @id @default(autoincrement())
-  title       String?
+  position    String?
   name        String
   email       String   @unique
   phone       String?
@@ -181,8 +203,21 @@ model Supervisor {
   user        UserAccount?           @relation(fields: [userId], references: [id])
   internships Internship[]
   evaluations EvaluationSubmission[]
+  profileSetupToken SupervisorProfileToken?
 
   @@map("supervisors")
+}
+
+model SupervisorProfileToken {
+  id           Int        @id @default(autoincrement())
+  tokenHash    String     @unique
+  expiresAt    DateTime
+  usedAt       DateTime?
+  createdAt    DateTime   @default(now())
+  supervisorId Int        @unique
+  supervisor   Supervisor @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
+
+  @@map("supervisor_profile_tokens")
 }
 
 // ─────────────────────────────────────────
@@ -292,4 +327,6 @@ enum EmailTrigger {
   SUPERVISOR_REMINDER
   SUPERVISOR_MISSING
   EVALUATION_REQUEST
+  CERTIFICATE_REMINDER
+  SUPERVISOR_PROFILE_INVITATION
 }

@@ -9,8 +9,10 @@ const fs = require('fs');
 
 const prisma = new PrismaClient();
 
-function removeUploadedEvidence(file) {
-  if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
+function removeUploadedFiles(files) {
+  Object.values(files || {}).flat().forEach(file => {
+    if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
+  });
 }
 
 async function generateRequestCode() {
@@ -24,40 +26,44 @@ async function generateRequestCode() {
 
 // POST /api/internships/requests
 const submitRequest = async (req, res, next) => {
+  const uploadedFiles = req.files || {};
+  const acceptanceLetter = uploadedFiles.acceptanceLetter?.[0];
+  const taskDocuments = uploadedFiles.taskDocuments || [];
   try {
     const studentId = req.user.student?.studentId;
     if (!studentId) {
-      removeUploadedEvidence(req.file);
+      removeUploadedFiles(uploadedFiles);
       return res.status(400).json({ error: 'Student profile not found' });
     }
 
     const setting = await prisma.systemSetting.findUnique({ where: { key: 'REQUESTS_OPEN' } });
     if (setting?.value === 'false') {
-      removeUploadedEvidence(req.file);
+      removeUploadedFiles(uploadedFiles);
       return res.status(423).json({ error: 'Internship requests are currently closed by the administrator' });
     }
 
     const { companyName, role, skills, tasks, startDate, endDate } = req.body;
 
     if (!companyName || !role || !tasks?.trim() || !startDate || !endDate) {
-      removeUploadedEvidence(req.file);
+      removeUploadedFiles(uploadedFiles);
       return res.status(400).json({
         error: 'Company name, role, tasks, start date, and end date are required',
       });
     }
-    if (!req.file) {
-      return res.status(400).json({ error: 'A task letter or email screenshot is required' });
+    if (!acceptanceLetter || taskDocuments.length === 0) {
+      removeUploadedFiles(uploadedFiles);
+      return res.status(400).json({ error: 'An acceptance letter or email and at least one official task document are required' });
     }
 
     const start = new Date(startDate);
     const end   = new Date(endDate);
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      removeUploadedEvidence(req.file);
+      removeUploadedFiles(uploadedFiles);
       return res.status(400).json({ error: 'Invalid date format' });
     }
     if (end <= start) {
-      removeUploadedEvidence(req.file);
+      removeUploadedFiles(uploadedFiles);
       return res.status(400).json({ error: 'End date must be after start date' });
     }
 
@@ -85,9 +91,22 @@ const submitRequest = async (req, res, next) => {
           role: role.trim(),
           skills: skills ? skills.trim() : '',
           tasks: tasks.trim(),
-          evidenceFileName: req.file.originalname,
-          evidenceFilePath: path.relative(path.join(__dirname, '../../uploads'), req.file.path).split(path.sep).join('/'),
-          evidenceFileSize: req.file.size,
+          attachments: {
+            create: [
+              {
+                type: 'ACCEPTANCE_LETTER',
+                fileName: acceptanceLetter.originalname,
+                filePath: path.relative(path.join(__dirname, '../../uploads'), acceptanceLetter.path).split(path.sep).join('/'),
+                fileSize: acceptanceLetter.size,
+              },
+              ...taskDocuments.map(file => ({
+                type: 'OFFICIAL_TASKS',
+                fileName: file.originalname,
+                filePath: path.relative(path.join(__dirname, '../../uploads'), file.path).split(path.sep).join('/'),
+                fileSize: file.size,
+              })),
+            ],
+          },
           startDate: start,
           endDate: end,
           durationWeeks,
@@ -100,7 +119,7 @@ const submitRequest = async (req, res, next) => {
 
     res.status(201).json({ message: 'Internship request submitted successfully', request });
   } catch (err) {
-    removeUploadedEvidence(req.file);
+    removeUploadedFiles(uploadedFiles);
     next(err);
   }
 };
@@ -112,6 +131,7 @@ const getMyRequests = async (req, res, next) => {
     const requests  = await prisma.internshipRequest.findMany({
       where: { studentId },
       include: {
+        attachments: true,
         internship: { include: { supervisor: true, documents: true } },
         reviewedBy: { select: { fullName: true } },
       },
@@ -139,6 +159,7 @@ const getAllRequests = async (req, res, next) => {
       prisma.internshipRequest.findMany({
         where,
         include: {
+          attachments: true,
           student:    { select: { studentId: true, fullName: true, universityEmail: true, campus: true, gpa: true, completedCredits: true, academicYear: true, internshipStatus: true } },
           reviewedBy: { select: { fullName: true } },
           internship: { include: { supervisor: true, documents: true, evaluation: true } },
@@ -165,6 +186,7 @@ const getRequestById = async (req, res, next) => {
     const request = await prisma.internshipRequest.findUnique({
       where: { id: parseInt(req.params.id) },
       include: {
+        attachments: true,
         student:    true,
         reviewedBy: { select: { fullName: true } },
         internship: { include: { supervisor: true, documents: true, evaluation: true } },
@@ -272,6 +294,23 @@ const updateInternshipStatus = async (req, res, next) => {
       include: { request: { include: { student: true } } },
     });
     if (!internship) return res.status(404).json({ error: 'Internship not found' });
+
+    if (status === 'COMPLETED') {
+      if (!req.user.committeeMember?.isAdmin) {
+        return res.status(403).json({ error: 'Admin access is required to complete an internship' });
+      }
+
+      const certificate = await prisma.document.findFirst({
+        where: {
+          internshipId,
+          studentId: internship.request.studentId,
+          documentType: 'COMPLETION_CERTIFICATE',
+        },
+      });
+      if (!certificate) {
+        return res.status(400).json({ error: 'A completion certificate must be uploaded before marking the internship complete' });
+      }
+    }
 
     const studentId = internship.request.student.studentId;
 

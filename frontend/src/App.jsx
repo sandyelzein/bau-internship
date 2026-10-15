@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage    from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import SupervisorRegisterPage from './pages/SupervisorRegisterPage';
+import SupervisorProfileSetupPage from './pages/SupervisorProfileSetupPage';
 import SupervisorDashboard from './pages/supervisor/SupervisorDashboard';
 
 // Student pages
@@ -55,6 +56,7 @@ function AppRoutes() {
       <Route path="/login"    element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/register/supervisor" element={<SupervisorRegisterPage />} />
+      <Route path="/supervisor/profile/:token" element={<SupervisorProfileSetupPage />} />
 
       {/* NEW: public evaluation page — no auth needed */}
       <Route path="/evaluation/:token" element={<EvaluationPage />} />

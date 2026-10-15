@@ -2,7 +2,7 @@
 
 .auth-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #002456 0%, #003571 60%, #1a4f8a 100%);
+  background: linear-gradient(135deg, #edf2ef 0%, #f7f8f5 55%, #e4ece9 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -11,45 +11,40 @@
 
 .auth-card {
   background: white;
-  border-radius: var(--radius-lg);
+  border-radius: 8px;
   box-shadow: var(--shadow-lg);
   width: 100%;
   max-width: 440px;
   overflow: hidden;
+  border: 1px solid rgba(11, 75, 120, 0.12);
 }
 
 .auth-card-wide { max-width: 600px; }
 
 .auth-header {
-  background: var(--primary);
-  padding: 28px 32px 24px;
+  background: #fff;
+  padding: 26px 32px 20px;
   text-align: center;
+  border-bottom: 1px solid var(--border);
 }
 
 .auth-logo {
-  width: 56px;
-  height: 56px;
-  background: white;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  width: min(100%, 270px);
+  height: auto;
   margin: 0 auto 14px;
-  font-weight: 900;
-  font-size: 1.1rem;
-  color: var(--primary);
-  letter-spacing: 1px;
 }
 
 .auth-title {
-  color: white;
-  font-size: 1.15rem;
-  font-weight: 700;
+  color: var(--primary-dark);
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
   margin-bottom: 4px;
 }
 
 .auth-subtitle {
-  color: rgba(255,255,255,0.7);
+  color: var(--text-muted);
   font-size: 0.78rem;
 }
 
@@ -68,7 +63,7 @@
   font-size: 0.85rem;
   color: var(--text-secondary);
   background: var(--primary-pale);
-  border-left: 3px solid var(--primary);
+  border-left: 3px solid var(--accent);
   padding: 10px 14px;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   margin-bottom: 20px;

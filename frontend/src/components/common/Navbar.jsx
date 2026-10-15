@@ -48,12 +48,10 @@ export default function Navbar() {
       <div className="navbar-inner">
         {/* Brand */}
         <Link to={homePath} className="navbar-brand">
-          <div className="navbar-logo">
-            <span className="navbar-logo-text">BAU</span>
-          </div>
+          <img className="navbar-logo" src="/bau-logo-blue.png" alt="Beirut Arab University" />
           <div className="navbar-brand-text">
-            <span className="navbar-title">Internship System</span>
-            <span className="navbar-subtitle">Faculty of Sciences – CS Dept.</span>
+            <span className="navbar-title">Internship Portal</span>
+            <span className="navbar-subtitle">Faculty of Sciences</span>
           </div>
         </Link>
 
