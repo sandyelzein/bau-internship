@@ -20,7 +20,14 @@ export default function SupervisorRegisterPage() {
       await registerSupervisor(form.email, form.password);
       navigate('/supervisor');
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not create supervisor account');
+      const serverError = err.response?.data?.error;
+      if (serverError === 'An account already exists for this supervisor') {
+        setError('An account already exists for this supervisor. Please sign in instead.');
+      } else if (!err.response) {
+        setError('Cannot reach the server. Check VITE_API_BASE_URL on the frontend and FRONTEND_URL on the backend, then redeploy both services.');
+      } else {
+        setError(serverError || 'Could not create supervisor account');
+      }
     } finally { setLoading(false); }
   };
 
