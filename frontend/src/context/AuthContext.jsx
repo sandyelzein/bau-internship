@@ -40,8 +40,8 @@ export function AuthProvider({ children }) {
     return userRole;
   };
 
-  const register = async (studentId, email, password, gpa) => {
-    const res = await api.post('/auth/register', { studentId, email, password, gpa });
+  const register = async (studentId, email, password, gpa, fullName) => {
+    const res = await api.post('/auth/register', { studentId, email, password, gpa, fullName });
     const { token, role: userRole, profile } = res.data;
 
     localStorage.setItem('token', token);

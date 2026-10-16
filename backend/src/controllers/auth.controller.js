@@ -1,6 +1,7 @@
 // src/controllers/auth.controller.js
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
@@ -130,72 +131,69 @@ const registerSupervisor = async (req, res, next) => {
 };
 
 // POST /api/auth/register
-// Students only — student must already exist in DB (imported via Excel)
 const register = async (req, res, next) => {
   try {
-    const { studentId, email, password, gpa } = req.body;
+    const { studentId, fullName, email, password, gpa } = req.body;
+    const publicStudentSignup = process.env.ALLOW_PUBLIC_STUDENT_SIGNUP === 'true';
 
-    // Validation
-    if (!studentId || !email || !password) {
+    if ((!studentId && !publicStudentSignup) || !email || !password) {
       return res.status(400).json({ error: 'Student ID, email, and password are required' });
     }
-
     if (password.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
-    // Find student by ID
-    const student = await prisma.student.findUnique({
-      where: { studentId },
-    });
-
-    if (!student) {
-      return res.status(404).json({
-        error: 'Student ID not found. Please contact the department if you believe this is an error.',
-      });
-    }
-
-    // Verify email matches stored university email
-    if (student.universityEmail.toLowerCase() !== email.toLowerCase()) {
-      return res.status(400).json({
-        error: 'Email does not match our records for this Student ID',
-      });
-    }
-
-    // Check if student already has an account
-    if (student.userId !== null) {
-      return res.status(409).json({ error: 'An account already exists for this Student ID' });
-    }
-
-    // Check if email is already used in UserAccount
-    const existingUser = await prisma.userAccount.findUnique({
-      where: { email: email.toLowerCase() },
-    });
+    const normalizedEmail = email.trim().toLowerCase();
+    const existingUser = await prisma.userAccount.findUnique({ where: { email: normalizedEmail } });
     if (existingUser) {
       return res.status(409).json({ error: 'An account with this email already exists' });
     }
 
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
+    let student = null;
+    if (studentId) {
+      student = await prisma.student.findUnique({ where: { studentId } });
+      if (!student && !publicStudentSignup) {
+        return res.status(404).json({ error: 'Student ID not found. Please contact the department if you believe this is an error.' });
+      }
+      if (student && student.universityEmail.toLowerCase() !== normalizedEmail) {
+        return res.status(400).json({ error: 'Email does not match our records for this Student ID' });
+      }
+    }
 
-    // Create user account and link to student in a transaction
+    if (student?.userId !== null && student) {
+      return res.status(409).json({ error: 'An account already exists for this Student ID' });
+    }
+
+    if (publicStudentSignup && !studentId) {
+      if (!fullName?.trim()) {
+        return res.status(400).json({ error: 'Full name is required for test registration' });
+      }
+      student = await prisma.student.findUnique({ where: { universityEmail: normalizedEmail } });
+      if (student?.userId) {
+        return res.status(409).json({ error: 'An account already exists for this student' });
+      }
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
     const result = await prisma.$transaction(async (tx) => {
       const userAccount = await tx.userAccount.create({
-        data: {
-          email: email.toLowerCase(),
-          passwordHash,
-          role: 'STUDENT',
-        },
+        data: { email: normalizedEmail, passwordHash, role: 'STUDENT' },
       });
 
-      // Update student: link userId and optionally update GPA
-      const updatedStudent = await tx.student.update({
-        where: { studentId },
-        data: {
-          userId: userAccount.id,
-          ...(gpa !== undefined && gpa !== '' ? { gpa: parseFloat(gpa) } : {}),
-        },
-      });
+      const studentData = {
+        userId: userAccount.id,
+        ...(gpa !== undefined && gpa !== '' ? { gpa: parseFloat(gpa) } : {}),
+      };
+      const updatedStudent = student
+        ? await tx.student.update({ where: { studentId: student.studentId }, data: studentData })
+        : await tx.student.create({
+          data: {
+            studentId: `TEST-${crypto.randomBytes(8).toString('hex').toUpperCase()}`,
+            fullName: fullName.trim(),
+            universityEmail: normalizedEmail,
+            ...studentData,
+          },
+        });
 
       return { userAccount, student: updatedStudent };
     });
@@ -215,6 +213,10 @@ const register = async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+};
+
+const getRegistrationSettings = (req, res) => {
+  res.json({ publicStudentSignup: process.env.ALLOW_PUBLIC_STUDENT_SIGNUP === 'true' });
 };
 
 // GET /api/auth/me
@@ -251,4 +253,4 @@ const getMe = async (req, res) => {
   res.json({ role: user.role, profile });
 };
 
-module.exports = { login, register, registerSupervisor, getMe };
+module.exports = { login, register, registerSupervisor, getMe, getRegistrationSettings };
