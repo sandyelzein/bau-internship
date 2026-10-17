@@ -6,8 +6,11 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 function createTransporter() {
-  const mode = process.env.EMAIL_MODE || 'test';
+  const mode = process.env.EMAIL_MODE || (process.env.NODE_ENV === 'production' ? 'real' : 'test');
   if (mode === 'test') {
+    if (!process.env.MAILTRAP_USER || !process.env.MAILTRAP_PASS) {
+      throw new Error('MAILTRAP_USER and MAILTRAP_PASS are required when EMAIL_MODE=test');
+    }
     return nodemailer.createTransport({
       host: process.env.MAILTRAP_HOST || 'sandbox.smtp.mailtrap.io',
       port: parseInt(process.env.MAILTRAP_PORT) || 2525,
@@ -17,16 +20,25 @@ function createTransporter() {
       },
     });
   }
+
+  if (mode !== 'real') {
+    throw new Error('EMAIL_MODE must be either test or real');
+  }
+
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS || !process.env.SMTP_FROM) {
+    throw new Error('SMTP_USER, SMTP_PASS, and SMTP_FROM are required when EMAIL_MODE=real');
+  }
+
+  const port = parseInt(process.env.SMTP_PORT, 10) || 587;
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: parseInt(process.env.SMTP_PORT) === 465,
+    host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+    port,
+    secure: port === 465,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   });
 }
 
-const FROM_ADDRESS =
-  process.env.SMTP_FROM || '"BAU Internship System" <noreply@bau.edu.lb>';
+const FROM_ADDRESS = process.env.SMTP_FROM || '"BAU Internship System" <noreply@bau.edu.lb>';
 
 // ── Shared BAU email wrapper ─────────────────────────────────
 function bauWrapper(bodyHtml) {
@@ -47,11 +59,11 @@ function bauWrapper(bodyHtml) {
 
 // ── Core send + log ──────────────────────────────────────────
 async function sendEmail({ to, subject, html, logHtml, triggerType }) {
-  const transporter = createTransporter();
   let status = 'SENT';
   let errorMessage = null;
 
   try {
+    const transporter = createTransporter();
     await transporter.sendMail({ from: FROM_ADDRESS, to, subject, html });
     console.log(`📧 Email sent to ${to} [${triggerType}]`);
   } catch (err) {
