@@ -6,7 +6,9 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 function createTransporter() {
-  const mode = process.env.EMAIL_MODE || (process.env.NODE_ENV === 'production' ? 'real' : 'test');
+  const mode = (process.env.EMAIL_MODE || (process.env.NODE_ENV === 'production' ? 'real' : 'test'))
+    .trim()
+    .toLowerCase();
   if (mode === 'test') {
     if (!process.env.MAILTRAP_USER || !process.env.MAILTRAP_PASS) {
       throw new Error('MAILTRAP_USER and MAILTRAP_PASS are required when EMAIL_MODE=test');
@@ -77,6 +79,18 @@ async function sendEmail({ to, subject, html, logHtml, triggerType }) {
   });
 
   return status === 'SENT';
+}
+
+async function sendManualEmail({ to, subject, message }) {
+  const escapedMessage = message
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+  const html = bauWrapper(`<p style="white-space:pre-wrap;">${escapedMessage}</p>`);
+
+  return sendEmail({ to, subject, html, triggerType: 'MANUAL' });
 }
 
 // ── EXISTING: Approval email ─────────────────────────────────
@@ -248,6 +262,7 @@ async function sendEvaluationRequestEmail({
 }
 
 module.exports = {
+  sendManualEmail,
   sendApprovalEmail,
   sendRejectionEmail,
   sendSupervisorReminderEmail,

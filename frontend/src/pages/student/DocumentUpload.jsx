@@ -3,17 +3,14 @@ import Navbar from '../../components/common/Navbar';
 import StatusBadge from '../../components/common/StatusBadge';
 import api from '../../api/axios';
 
-const DOC_TYPES = [
-  { value: 'COMPLETION_CERTIFICATE', label: 'Completion Certificate' },
-  { value: 'RECOMMENDATION_LETTER', label: 'Recommendation Letter' },
-];
+const CERTIFICATE_TYPE = 'COMPLETION_CERTIFICATE';
+const CERTIFICATE_LABEL = 'Completion Certificate';
 const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 export default function DocumentUpload() {
   const [internships, setInternships] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState('');
-  const [docType, setDocType] = useState('COMPLETION_CERTIFICATE');
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
@@ -32,11 +29,8 @@ export default function DocumentUpload() {
     event.preventDefault();
     if (!selectedId || !file) return setError('Select an internship and PDF file');
     const selectedInternship = internships.find(item => String(item.id) === selectedId);
-    if (docType !== 'COMPLETION_CERTIFICATE' && selectedInternship?.status !== 'COMPLETED') {
-      return setError('This document can only be uploaded after the internship is completed');
-    }
     const payload = new FormData();
-    payload.append('documentType', docType); payload.append('internshipId', selectedId); payload.append('file', file);
+    payload.append('documentType', CERTIFICATE_TYPE); payload.append('internshipId', selectedId); payload.append('file', file);
     setUploading(true); setError(''); setMessage('');
     try {
       await api.post('/documents/upload', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -56,7 +50,7 @@ export default function DocumentUpload() {
 
   return <><Navbar /><div className="page-container">
     <h1 className="page-title">My Internships</h1>
-    <div className="alert alert-info">Upload your completion certificate for an internship in progress so the administrator can review it. Other documents are available after completion.</div>
+    <div className="alert alert-info">Upload the completion certificate for an internship in progress. The administrator will review it before marking the internship complete.</div>
     {message && <div className="alert alert-success">{message}</div>}
     {error && <div className="alert alert-error">{error}</div>}
 
@@ -77,7 +71,7 @@ export default function DocumentUpload() {
       </div>)}
 
       <div className="card" style={{ maxWidth: 640 }}>
-        <div className="card-header"><h3>Upload Internship Document</h3></div>
+            <div className="card-header"><h3>Upload Completion Certificate</h3></div>
         <div className="card-body">
           {!availableInternships.length ? <div className="alert alert-warning">There are no in-progress or completed internships available for document upload.</div> : <form onSubmit={upload}>
             <div className="form-group"><label>Internship</label><select value={selectedId} onChange={e => {
@@ -85,8 +79,7 @@ export default function DocumentUpload() {
               setSelectedId(e.target.value);
               if (nextInternship?.status === 'IN_PROGRESS') setDocType('COMPLETION_CERTIFICATE');
             }} required><option value="">Select</option>{availableInternships.map(item => <option value={item.id} key={item.id}>{item.request.companyName} · {item.request.requestCode} · {item.status === 'COMPLETED' ? 'Completed' : 'In Progress'}</option>)}</select></div>
-            <div className="form-group"><label>Document Type</label><select value={docType} onChange={e => setDocType(e.target.value)}>{DOC_TYPES.map(type => <option key={type.value} value={type.value} disabled={type.value !== 'COMPLETION_CERTIFICATE' && selectedInternship?.status !== 'COMPLETED'}>{type.label}</option>)}</select></div>
-            <div className="form-group"><label>PDF File</label><input ref={fileRef} type="file" accept=".pdf,application/pdf" onChange={e => setFile(e.target.files[0])} required /></div>
+            <div className="form-group"><label>Completion Certificate (PDF)</label><input ref={fileRef} type="file" accept=".pdf,application/pdf" onChange={e => setFile(e.target.files[0])} required /></div>
             <button className="btn btn-primary" disabled={uploading}>{uploading ? 'Uploading…' : 'Upload Document'}</button>
           </form>}
         </div>

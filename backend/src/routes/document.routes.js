@@ -6,12 +6,14 @@ const {
   getMyDocuments,
   getMyInternships,
   getStudentDocuments,
+  markCertificateReviewed,
   deleteDocument,
 } = require('../controllers/document.controller');
 const {
   authenticate,
   requireStudent,
   requireCommittee,
+  requireAdmin,
 } = require('../middleware/auth.middleware');
 const { upload } = require('../middleware/upload.middleware');
 
@@ -29,5 +31,6 @@ router.delete('/:id', authenticate, requireStudent, deleteDocument);
 
 // Committee routes
 router.get('/student/:studentId', authenticate, requireCommittee, getStudentDocuments);
+router.post('/:id/review', authenticate, requireAdmin, markCertificateReviewed);
 
 module.exports = router;

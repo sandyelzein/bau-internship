@@ -1,19 +1,26 @@
 // src/pages/committee/EmailLogs.jsx
 import React, { useEffect, useState } from 'react';
 import Navbar from '../../components/common/Navbar';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
 
 const TRIGGER_LABELS = {
   REQUEST_APPROVED: 'Approved',
   REQUEST_REJECTED: 'Rejected',
+  MANUAL: 'Manual',
 };
 
 export default function EmailLogs() {
+  const { isAdmin } = useAuth();
   const [logs, setLogs]         = useState([]);
   const [pagination, setPagination] = useState({});
   const [loading, setLoading]   = useState(true);
   const [page, setPage]         = useState(1);
   const [expanded, setExpanded] = useState(null);
+  const [email, setEmail] = useState({ to: '', subject: '', message: '' });
+  const [sending, setSending] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
     setLoading(true);
@@ -21,7 +28,26 @@ export default function EmailLogs() {
       .then(res => { setLogs(res.data.logs); setPagination(res.data.pagination); })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [page]);
+  }, [page, refresh]);
+
+  const handleSend = async (event) => {
+    event.preventDefault();
+    setFeedback(null);
+    setSending(true);
+    try {
+      await api.post('/committee/email-test', email);
+      setFeedback({ type: 'success', message: 'Email sent successfully.' });
+      setEmail(current => ({ ...current, message: '' }));
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: error.response?.data?.error || 'Email could not be sent. Please try again.',
+      });
+    } finally {
+      setSending(false);
+      setRefresh(value => value + 1);
+    }
+  };
 
   return (
     <>
@@ -33,6 +59,60 @@ export default function EmailLogs() {
             {pagination.total ?? 0} emails sent
           </span>
         </div>
+
+        {isAdmin && (
+          <div className="card" style={{ marginBottom: 24 }}>
+            <div className="card-header"><h3>Send Test Email</h3></div>
+            <div className="card-body">
+              <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>
+                Send a message through the configured email service. The result will appear in Email Logs.
+              </p>
+              {feedback && (
+                <div className={`alert alert-${feedback.type === 'success' ? 'success' : 'error'}`} role="status">
+                  {feedback.message}
+                </div>
+              )}
+              <form onSubmit={handleSend}>
+                <div className="form-group">
+                  <label htmlFor="email-recipient">Recipient email</label>
+                  <input
+                    id="email-recipient"
+                    type="email"
+                    value={email.to}
+                    onChange={event => setEmail(current => ({ ...current, to: event.target.value }))}
+                    maxLength={254}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="email-subject">Subject</label>
+                  <input
+                    id="email-subject"
+                    value={email.subject}
+                    onChange={event => setEmail(current => ({ ...current, subject: event.target.value }))}
+                    maxLength={200}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="email-message">Message</label>
+                  <textarea
+                    id="email-message"
+                    value={email.message}
+                    onChange={event => setEmail(current => ({ ...current, message: event.target.value }))}
+                    maxLength={5000}
+                    rows={6}
+                    required
+                  />
+                  <small style={{ color: 'var(--text-muted)' }}>{email.message.length}/5000</small>
+                </div>
+                <button type="submit" className="btn btn-primary" disabled={sending}>
+                  {sending ? 'Sending…' : 'Send Email'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
 
         <div className="card">
           {loading ? (

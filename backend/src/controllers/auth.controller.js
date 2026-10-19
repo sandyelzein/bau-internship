@@ -133,7 +133,7 @@ const registerSupervisor = async (req, res, next) => {
 // POST /api/auth/register
 const register = async (req, res, next) => {
   try {
-    const { studentId, fullName, email, password, gpa } = req.body;
+    const { studentId, fullName, email, password } = req.body;
     const publicStudentSignup = process.env.ALLOW_PUBLIC_STUDENT_SIGNUP === 'true';
 
     if ((!studentId && !publicStudentSignup) || !email || !password) {
@@ -182,7 +182,6 @@ const register = async (req, res, next) => {
 
       const studentData = {
         userId: userAccount.id,
-        ...(gpa !== undefined && gpa !== '' ? { gpa: parseFloat(gpa) } : {}),
       };
       const updatedStudent = student
         ? await tx.student.update({ where: { studentId: student.studentId }, data: studentData })

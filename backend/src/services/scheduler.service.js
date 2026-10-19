@@ -186,20 +186,24 @@ async function runEvaluationRequestJob() {
 }
 
 async function runCompletionCertificateReminderJob() {
-  console.log('⏰ [Scheduler] Running completion certificate reminder job…');
+  console.log('[Scheduler] Running completion certificate reminder job');
 
   const internships = await prisma.internship.findMany({
     where: {
-      status: 'COMPLETED',
+      status: 'IN_PROGRESS',
       certificateReminderSentAt: null,
       documents: { none: { documentType: 'COMPLETION_CERTIFICATE' } },
+      request: {
+        status: 'APPROVED',
+        endDate: { lte: new Date() },
+      },
     },
     include: {
       request: { include: { student: true } },
     },
   });
 
-  console.log(`  Found ${internships.length} completed internship(s) missing a certificate`);
+  console.log(`  Found ${internships.length} ended internship(s) missing a certificate`);
 
   for (const internship of internships) {
     const student = internship.request.student;
@@ -214,7 +218,7 @@ async function runCompletionCertificateReminderJob() {
         where: { id: internship.id },
         data: { certificateReminderSentAt: new Date() },
       });
-      console.log(`  ✅ Certificate reminder sent → ${student.universityEmail}`);
+      console.log(`  Certificate reminder sent to ${student.universityEmail}`);
     }
   }
 }
@@ -238,4 +242,4 @@ function initScheduler() {
   });
 }
 
-module.exports = { initScheduler };
+module.exports = { initScheduler, runCompletionCertificateReminderJob };

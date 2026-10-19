@@ -89,6 +89,7 @@ model CommitteeMember {
   user   UserAccount @relation(fields: [userId], references: [id])
 
   reviewedRequests InternshipRequest[]
+  reviewedDocuments Document[] @relation("DocumentReviewedBy")
 
   @@map("committee_members")
 }
@@ -276,12 +277,16 @@ model Document {
   filePath     String
   fileSize     Int
   uploadedAt   DateTime     @default(now())
+  reviewedAt   DateTime?
 
   studentId String
   student   Student @relation(fields: [studentId], references: [studentId])
 
   internshipId Int?
   internship   Internship? @relation(fields: [internshipId], references: [id])
+
+  reviewedById Int?
+  reviewedBy   CommitteeMember? @relation("DocumentReviewedBy", fields: [reviewedById], references: [id])
 
   @@map("documents")
 }

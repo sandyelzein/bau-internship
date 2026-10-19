@@ -5,7 +5,7 @@ const fs = require('fs');
 
 const prisma = new PrismaClient();
 
-const VALID_TYPES = ['COMPLETION_CERTIFICATE', 'RECOMMENDATION_LETTER'];
+const VALID_TYPES = ['COMPLETION_CERTIFICATE'];
 
 // POST /api/documents/upload
 // Student uploads a document
@@ -123,6 +123,37 @@ const getStudentDocuments = async (req, res, next) => {
   }
 };
 
+// POST /api/documents/:id/review — Admin marks a completion certificate reviewed
+const markCertificateReviewed = async (req, res, next) => {
+  try {
+    const documentId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(documentId)) {
+      return res.status(400).json({ error: 'Invalid document ID' });
+    }
+
+    const document = await prisma.document.findUnique({ where: { id: documentId } });
+    if (!document) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    if (document.documentType !== 'COMPLETION_CERTIFICATE' || !document.internshipId) {
+      return res.status(400).json({ error: 'Only an internship completion certificate can be reviewed' });
+    }
+
+    const reviewed = await prisma.document.update({
+      where: { id: documentId },
+      data: {
+        reviewedAt: new Date(),
+        reviewedById: req.user.committeeMember.id,
+      },
+      select: { id: true, reviewedAt: true, reviewedById: true },
+    });
+
+    res.json({ message: 'Certificate marked as reviewed', document: reviewed });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // DELETE /api/documents/:id — Student deletes own document
 const deleteDocument = async (req, res, next) => {
   try {
@@ -158,5 +189,6 @@ module.exports = {
   getMyDocuments,
   getMyInternships,
   getStudentDocuments,
+  markCertificateReviewed,
   deleteDocument,
 };

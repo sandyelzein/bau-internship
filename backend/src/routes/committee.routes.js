@@ -8,6 +8,7 @@ const {
   deleteMember,
   importData,
   getEmailLogs,
+  sendTestEmail,
 } = require('../controllers/committee.controller');
 const {
   authenticate,
@@ -33,5 +34,6 @@ router.post(
 
 // Committee: email logs
 router.get('/email-logs', authenticate, requireCommittee, getEmailLogs);
+router.post('/email-test', authenticate, requireAdmin, sendTestEmail);
 
 module.exports = router;

@@ -1,6 +1,7 @@
 // src/controllers/committee.controller.js
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const { sendManualEmail } = require('../services/email.service');
 
 const prisma = new PrismaClient();
 
@@ -216,6 +217,44 @@ const getEmailLogs = async (req, res, next) => {
   }
 };
 
+// POST /api/committee/email-test — Admin only
+const sendTestEmail = async (req, res, next) => {
+  try {
+    const { to, subject, message } = req.body;
+    const recipient = typeof to === 'string' ? to.trim() : '';
+    const emailSubject = typeof subject === 'string' ? subject.trim() : '';
+    const emailMessage = typeof message === 'string' ? message.trim() : '';
+
+    if (
+      !recipient ||
+      recipient.length > 254 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient) ||
+      !emailSubject ||
+      emailSubject.length > 200 ||
+      !emailMessage ||
+      emailMessage.length > 5000
+    ) {
+      return res.status(400).json({
+        error: 'Enter a valid recipient, a subject up to 200 characters, and a message up to 5000 characters.',
+      });
+    }
+
+    const sent = await sendManualEmail({
+      to: recipient,
+      subject: emailSubject,
+      message: emailMessage,
+    });
+
+    if (!sent) {
+      return res.status(502).json({ error: 'Email delivery failed. Check Email Logs for details.' });
+    }
+
+    res.json({ sent: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getAllMembers,
   addMember,
@@ -223,4 +262,5 @@ module.exports = {
   deleteMember,
   importData,
   getEmailLogs,
+  sendTestEmail,
 };

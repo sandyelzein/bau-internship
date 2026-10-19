@@ -24,6 +24,7 @@ export default function RequestDetail() {
   // Internship status update
   const [internshipStatus, setIntStatus] = useState('');
   const [updatingStatus, setUpdating]    = useState(false);
+  const [reviewingDocumentId, setReviewingDocumentId] = useState(null);
 
   const fetchRequest = () =>
     api.get(`/internships/requests/${id}`)
@@ -66,14 +67,31 @@ export default function RequestDetail() {
     }
   };
 
+  const handleCertificateReview = async (documentId) => {
+    setReviewingDocumentId(documentId); setErr(''); setMsg('');
+    try {
+      await api.post(`/documents/${documentId}/review`);
+      setMsg('Certificate marked as reviewed.');
+      await fetchRequest();
+    } catch (e) {
+      setErr(e.response?.data?.error || 'Could not mark certificate as reviewed.');
+    } finally {
+      setReviewingDocumentId(null);
+    }
+  };
+
   if (loading) return <><Navbar /><div className="spinner" /></>;
   if (!request) return <><Navbar /><div className="page-container"><div className="alert alert-error">Request not found.</div></div></>;
 
   const isPending = request.status === 'PENDING';
-  const shorterThanOneYear = request.durationWeeks < 52;
+  const minimumDurationMs = 14 * 24 * 60 * 60 * 1000;
+  const belowMinimumDuration = request.startDate && request.endDate
+    ? new Date(request.endDate) - new Date(request.startDate) < minimumDurationMs
+    : request.durationWeeks < 2;
   const completionCertificates = request.internship?.documents?.filter(
     document => document.documentType === 'COMPLETION_CERTIFICATE'
   ) || [];
+  const reviewedCertificate = completionCertificates.some(certificate => certificate.reviewedAt);
 
   return (
     <>
@@ -97,9 +115,9 @@ export default function RequestDetail() {
                 <StatusBadge status={request.status} />
               </div>
               <div className="card-body">
-                {shorterThanOneYear && (
+                {belowMinimumDuration && (
                   <div className="alert alert-warning">
-                    ⚠️ This internship is shorter than one year ({request.durationWeeks} weeks). Review the duration before making the final decision.
+                    This internship is shorter than the required minimum of 2 weeks (14 days). Do not approve this request.
                   </div>
                 )}
                 {[
@@ -170,18 +188,34 @@ export default function RequestDetail() {
                         <a className="btn btn-secondary btn-sm" href={`${BACKEND_URL}/uploads/${certificate.filePath}`} target="_blank" rel="noreferrer">
                           Review {certificate.fileName}
                         </a>
+                        {isAdmin && (certificate.reviewedAt ? (
+                          <span className="badge badge-approved" style={{ marginLeft: 8 }}>Reviewed</span>
+                        ) : (
+                          <button
+                            className="btn btn-primary btn-sm"
+                            style={{ marginLeft: 8 }}
+                            onClick={() => handleCertificateReview(certificate.id)}
+                            disabled={reviewingDocumentId !== null}
+                          >
+                            {reviewingDocumentId === certificate.id ? 'Saving…' : 'Mark Reviewed'}
+                          </button>
+                        ))}
                       </div>
                     )) : <p style={{ color: 'var(--text-muted)' }}>No completion certificate uploaded.</p>}
                   </div>
-                  {isAdmin && completionCertificates.length === 0 && (
-                    <div className="alert alert-warning">A completion certificate is required before you can mark this internship complete.</div>
+                  {isAdmin && !reviewedCertificate && (
+                    <div className="alert alert-warning">
+                      {completionCertificates.length === 0
+                        ? 'A completion certificate must be uploaded before this internship can be completed.'
+                        : 'Open and review the certificate, then mark it as reviewed before completing this internship.'}
+                    </div>
                   )}
                   <div className="form-group">
                     <label>Update Internship Status</label>
                     <select value={internshipStatus} onChange={e => setIntStatus(e.target.value)}>
                       <option value="IN_PROGRESS">In Progress</option>
                       {(isAdmin || request.internship.status === 'COMPLETED') && (
-                        <option value="COMPLETED" disabled={!isAdmin || completionCertificates.length === 0}>
+                        <option value="COMPLETED" disabled={!isAdmin || !reviewedCertificate}>
                           Completed
                         </option>
                       )}
