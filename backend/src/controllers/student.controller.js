@@ -29,33 +29,6 @@ const getMyProfile = async (req, res, next) => {
   }
 };
 
-// PATCH /api/students/profile/gpa
-// Student updates their own GPA
-const updateMyGPA = async (req, res, next) => {
-  try {
-    const studentId = req.user.student?.studentId;
-    const { gpa } = req.body;
-
-    if (gpa === undefined || gpa === '') {
-      return res.status(400).json({ error: 'GPA is required' });
-    }
-
-    const gpaValue = parseFloat(gpa);
-    if (isNaN(gpaValue) || gpaValue < 0 || gpaValue > 4) {
-      return res.status(400).json({ error: 'GPA must be between 0 and 4' });
-    }
-
-    const updated = await prisma.student.update({
-      where: { studentId },
-      data: { gpa: gpaValue },
-    });
-
-    res.json({ message: 'GPA updated successfully', gpa: updated.gpa });
-  } catch (err) {
-    next(err);
-  }
-};
-
 // GET /api/students — Committee only
 // List all students with filters
 const getAllStudents = async (req, res, next) => {
@@ -205,7 +178,6 @@ const updateStudent = async (req, res, next) => {
 
 module.exports = {
   getMyProfile,
-  updateMyGPA,
   getAllStudents,
   getStudentById,
   updateStudent,

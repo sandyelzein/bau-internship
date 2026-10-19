@@ -7,10 +7,11 @@ const {
   getEvaluationResults,
 } = require('../controllers/evaluation.controller');
 const { authenticate, requireCommittee } = require('../middleware/auth.middleware');
+const { publicFormLimiter } = require('../middleware/form-security.middleware');
 
 // Public routes — no auth, supervisor uses these via email link
-router.get('/:token',        getEvaluationContext);
-router.post('/:token/submit', submitEvaluation);
+router.get('/:token', publicFormLimiter, getEvaluationContext);
+router.post('/:token/submit', publicFormLimiter, submitEvaluation);
 
 // Committee only
 router.get('/', authenticate, requireCommittee, getEvaluationResults);

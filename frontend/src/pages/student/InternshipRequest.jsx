@@ -5,6 +5,16 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import api from '../../api/axios';
 
+const MIN_INTERNSHIP_DAYS = 14;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+function getMinimumEndDate(startDate) {
+  if (!startDate) return undefined;
+  const minimumDate = new Date(`${startDate}T00:00:00Z`);
+  minimumDate.setUTCDate(minimumDate.getUTCDate() + MIN_INTERNSHIP_DAYS);
+  return minimumDate.toISOString().slice(0, 10);
+}
+
 export default function InternshipRequest() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
@@ -37,8 +47,13 @@ export default function InternshipRequest() {
     e.preventDefault();
     setError(''); setSuccess('');
 
-    if (new Date(form.endDate) <= new Date(form.startDate)) {
+    const start = new Date(`${form.startDate}T00:00:00Z`);
+    const end = new Date(`${form.endDate}T00:00:00Z`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
       return setError('End date must be after start date');
+    }
+    if (end - start < MIN_INTERNSHIP_DAYS * DAY_IN_MS) {
+      return setError('Internship duration must be at least 2 weeks (14 days).');
     }
 
     setLoading(true);
@@ -62,10 +77,15 @@ export default function InternshipRequest() {
   // Calculate duration preview for the student's convenience
   const durationPreview = () => {
     if (!form.startDate || !form.endDate) return null;
-    const diff = new Date(form.endDate) - new Date(form.startDate);
+    const diff = new Date(`${form.endDate}T00:00:00Z`) - new Date(`${form.startDate}T00:00:00Z`);
     if (diff <= 0) return null;
-    const weeks = Math.round(diff / (7 * 24 * 60 * 60 * 1000));
-    return `${weeks} week${weeks !== 1 ? 's' : ''}`;
+    const days = Math.round(diff / DAY_IN_MS);
+    const weeks = Math.floor(days / 7);
+    const remainingDays = days % 7;
+    const parts = [];
+    if (weeks) parts.push(`${weeks} week${weeks !== 1 ? 's' : ''}`);
+    if (remainingDays) parts.push(`${remainingDays} day${remainingDays !== 1 ? 's' : ''}`);
+    return parts.join(' and ');
   };
 
   return (
@@ -140,7 +160,7 @@ export default function InternshipRequest() {
                   <label>End Date <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
                     type="date" name="endDate" value={form.endDate}
-                    onChange={handleChange} required
+                    onChange={handleChange} min={getMinimumEndDate(form.startDate)} required
                   />
                 </div>
               </div>
@@ -148,6 +168,7 @@ export default function InternshipRequest() {
               {durationPreview() && (
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: -10, marginBottom: 16 }}>
                   Duration: <strong>{durationPreview()}</strong>
+                  {' '}(minimum 2 weeks)
                 </p>
               )}
 

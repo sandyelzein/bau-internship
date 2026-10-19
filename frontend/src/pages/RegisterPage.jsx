@@ -9,7 +9,7 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const navigate      = useNavigate();
 
-  const [form, setForm]       = useState({ studentId: '', fullName: '', email: '', password: '', confirmPassword: '', gpa: '' });
+  const [form, setForm]       = useState({ studentId: '', fullName: '', email: '', password: '', confirmPassword: '' });
   const [publicSignup, setPublicSignup] = useState(false);
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,16 +33,13 @@ export default function RegisterPage() {
     if (form.password.length < 8) {
       return setError('Password must be at least 8 characters');
     }
-    if (form.gpa && (isNaN(form.gpa) || form.gpa < 0 || form.gpa > 4)) {
-      return setError('GPA must be between 0 and 4');
-    }
     if (publicSignup && !form.fullName.trim()) {
       return setError('Full name is required');
     }
 
     setLoading(true);
     try {
-      await register(publicSignup ? undefined : form.studentId, form.email, form.password, form.gpa || undefined, form.fullName);
+      await register(publicSignup ? undefined : form.studentId, form.email, form.password, form.fullName);
       navigate('/student');
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
@@ -88,15 +85,9 @@ export default function RegisterPage() {
                 <input name="fullName" value={form.fullName} onChange={handleChange} required />
               </div>
             ) : (
-              <div className="grid-2">
-                <div className="form-group">
-                  <label>Student ID <span className="required">*</span></label>
-                  <input type="text" name="studentId" value={form.studentId} onChange={handleChange} placeholder="e.g. 202012345" required />
-                </div>
-                <div className="form-group">
-                  <label>GPA (optional)</label>
-                  <input type="number" name="gpa" value={form.gpa} onChange={handleChange} placeholder="e.g. 3.75" step="0.01" min="0" max="4" />
-                </div>
+              <div className="form-group">
+                <label>Student ID <span className="required">*</span></label>
+                <input type="text" name="studentId" value={form.studentId} onChange={handleChange} placeholder="e.g. 202012345" required />
               </div>
             )}
 

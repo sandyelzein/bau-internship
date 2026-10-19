@@ -30,7 +30,7 @@
 
 .navbar-logo {
   display: block;
-  width: 172px;
+  width: 140px;
   height: auto;
   flex: 0 0 auto;
 }
@@ -159,7 +159,7 @@
 
 @media (max-width: 768px) {
   .navbar-inner { min-height: 68px; padding: 0 16px; }
-  .navbar-logo { width: 158px; }
+  .navbar-logo { width: 130px; }
   .navbar-links { display: none; }
   .navbar-user  { display: none; }
   .navbar-hamburger { display: flex; }
@@ -167,5 +167,5 @@
 }
 
 @media (max-width: 390px) {
-  .navbar-logo { width: 142px; }
+  .navbar-logo { width: 116px; }
 }

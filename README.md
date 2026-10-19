@@ -155,6 +155,7 @@ npx prisma migrate dev
 ```
 
 This applies the migrations already committed in `backend/prisma/migrations` and creates the tables in PostgreSQL.
+For a production database, run `npm run db:deploy` from `backend` during deployment to apply committed migrations safely.
 
 ---
 
@@ -241,10 +242,9 @@ To register as a student:
 | Method | Endpoint                    | Access      | Description            |
 |--------|-----------------------------|-------------|------------------------|
 | GET    | /api/students/profile       | Student     | Own profile            |
-| PATCH  | /api/students/profile/gpa   | Student     | Update own GPA         |
 | GET    | /api/students               | Committee   | List all (with filters)|
 | GET    | /api/students/:id           | Committee   | Student detail         |
-| PATCH  | /api/students/:id           | Committee   | Update student fields  |
+| PATCH  | /api/students/:id           | Committee   | Update student fields, including GPA |
 
 ### Internship Requests
 | Method | Endpoint                          | Access    | Description             |
@@ -264,6 +264,7 @@ To register as a student:
 | GET    | /api/documents/my-internships     | Student   | Internships, statuses, and documents |
 | DELETE | /api/documents/:id                | Student   | Delete own document     |
 | GET    | /api/documents/student/:id        | Committee | Student's documents     |
+| POST   | /api/documents/:id/review         | Admin     | Mark a completion certificate reviewed |
 
 ### Committee (Admin)
 | Method | Endpoint                   | Access | Description              |
@@ -274,11 +275,29 @@ To register as a student:
 | DELETE | /api/committee/members/:id | Admin  | Deactivate member        |
 | POST   | /api/committee/import      | Admin  | Import students (Excel)  |
 | GET    | /api/committee/email-logs  | Committee | View email logs       |
+| POST   | /api/committee/email-test  | Admin  | Send a manual email      |
+
+Admins must open and review the uploaded completion certificate, then mark it as reviewed
+on the internship request page before the internship can be marked complete.
+
+The daily certificate reminder checks approved internships that are still in progress,
+have passed their end date, and have no completion certificate. A successful reminder is
+recorded to prevent duplicate daily messages.
+
+Admins can also send a message from the **Email Logs** page. Enter the recipient,
+subject, and message; sends and failures are recorded in the email log. The message
+is sent as plain text within the system's email template.
 
 ### Dashboard
 | Method | Endpoint              | Access    | Description     |
 |--------|-----------------------|-----------|-----------------|
 | GET    | /api/dashboard/stats  | Committee | Dashboard stats |
+
+### Form Security
+
+Login, registration, supervisor profile setup, and public evaluation-link endpoints are
+limited to 20 requests per IP address per 15-minute window. Supervisor setup and evaluation
+links use expiring, single-use tokens; evaluation submissions are validated by the backend.
 
 ---
 
@@ -298,20 +317,31 @@ Example rows:
 
 ---
 
-## Switching Email to Production (Real SMTP)
+## Email Configuration for Production / Railway
 
-In `backend/.env`, change:
+In production, the backend defaults to `EMAIL_MODE=real`. Set these variables in the Railway
+backend service (do not use `EMAIL_MODE=test` for real delivery):
+
 ```env
 EMAIL_MODE=real
-
-SMTP_HOST=smtp.gmail.com
+SMTP_HOST=smtp-relay.brevo.com
 SMTP_PORT=587
-SMTP_USER=your_email@gmail.com
-SMTP_PASS=your_app_password
-SMTP_FROM="BAU Internship System <noreply@bau.edu.lb>"
+SMTP_USER=your_brevo_smtp_login
+SMTP_PASS=your_brevo_smtp_key
+SMTP_FROM="BAU Internship System <verified-sender@your-domain.com>"
 ```
 
-For Gmail, generate an **App Password** in Google Account → Security → 2FA → App Passwords.
+`SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` are required when `EMAIL_MODE=real`. The sender
+address must be verified/authorized with the SMTP provider. The service defaults `SMTP_HOST`
+to Brevo; if using Gmail instead, explicitly set `SMTP_HOST=smtp.gmail.com`, use a Gmail
+App Password, and set `SMTP_FROM` to the Gmail address or an authorized alias.
+
+If delivery fails, check the Railway deployment logs for the `Email failed` error and the
+Committee → Email Logs page for the recorded failure. Missing or incorrect SMTP credentials
+usually produce an authentication error; a timeout/connection error despite valid settings
+may indicate Railway or the SMTP provider is blocking the connection.
+
+Run the backend email tests with `npm test` from the `backend` directory.
 
 ---
 

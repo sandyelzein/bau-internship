@@ -1,7 +1,4 @@
 // src/controllers/internship.controller.js
-// FIX: removed `endDate: new Date()` from internship.update() in updateInternshipStatus
-//      The Internship model has no endDate field — dates live on InternshipRequest
-
 const { PrismaClient } = require('@prisma/client');
 const { sendApprovalEmail, sendRejectionEmail } = require('../services/email.service');
 const path = require('path');
@@ -68,13 +65,26 @@ const submitRequest = async (req, res, next) => {
     }
 
     const msPerWeek     = 7 * 24 * 60 * 60 * 1000;
+    if (end - start < 2 * msPerWeek) {
+      removeUploadedFiles(uploadedFiles);
+      return res.status(400).json({ error: 'Internship duration must be at least 2 weeks (14 days)' });
+    }
     const durationWeeks = Math.round((end - start) / msPerWeek);
 
     const activeRequest = await prisma.internshipRequest.findFirst({
-      where: { studentId, status: { in: ['PENDING', 'APPROVED'] } },
+      where: {
+        studentId,
+        OR: [
+          { status: 'PENDING' },
+          {
+            status: 'APPROVED',
+            internship: { isNot: { status: 'COMPLETED' } },
+          },
+        ],
+      },
     });
     if (activeRequest) {
-      removeUploadedEvidence(req.file);
+      removeUploadedFiles(uploadedFiles);
       return res.status(409).json({
         error: 'You already have an active internship request.',
         existingRequest: { requestCode: activeRequest.requestCode, status: activeRequest.status },
@@ -246,6 +256,12 @@ const reviewRequest = async (req, res, next) => {
     });
     if (!request)                     return res.status(404).json({ error: 'Request not found' });
     if (request.status !== 'PENDING') return res.status(400).json({ error: 'Only pending requests can be reviewed' });
+    if (
+      status === 'APPROVED' &&
+      request.endDate - request.startDate < 14 * 24 * 60 * 60 * 1000
+    ) {
+      return res.status(400).json({ error: 'Internship duration must be at least 2 weeks (14 days)' });
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
       const updatedRequest = await tx.internshipRequest.update({
@@ -305,10 +321,11 @@ const updateInternshipStatus = async (req, res, next) => {
           internshipId,
           studentId: internship.request.studentId,
           documentType: 'COMPLETION_CERTIFICATE',
+          reviewedAt: { not: null },
         },
       });
       if (!certificate) {
-        return res.status(400).json({ error: 'A completion certificate must be uploaded before marking the internship complete' });
+        return res.status(400).json({ error: 'An admin must review the completion certificate before marking the internship complete' });
       }
     }
 

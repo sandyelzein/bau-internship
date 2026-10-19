@@ -18,6 +18,7 @@ const { initScheduler } = require('./services/scheduler.service'); // NEW
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+app.set('trust proxy', 1);
 
 // ── Middleware ────────────────────────────────────────────────
 app.use(cors({
@@ -47,6 +48,9 @@ app.use(errorHandler);
 // ── Start ─────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`✅ BAU Internship Backend running on http://localhost:${PORT}`);
-  console.log(`📧 Email mode: ${process.env.EMAIL_MODE || 'test'}`);
+  const emailMode = (process.env.EMAIL_MODE || (process.env.NODE_ENV === 'production' ? 'real' : 'test'))
+    .trim()
+    .toLowerCase();
+  console.log(`📧 Email mode: ${emailMode}`);
   initScheduler(); // NEW — start cron jobs
 });

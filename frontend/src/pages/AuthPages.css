@@ -41,7 +41,7 @@
 
 .auth-logo {
   display: block;
-  width: min(100%, 214px);
+  width: min(100%, 170px);
   height: auto;
   padding: 0;
   background: transparent;
@@ -99,7 +99,7 @@
   .auth-card,
   .auth-card-wide { max-width: 480px; margin: auto; grid-template-columns: 1fr; }
   .auth-header { padding: 24px 24px 20px; align-items: center; text-align: center; border-right: 0; border-bottom: 3px solid var(--accent); }
-  .auth-logo { width: min(100%, 185px); margin: 0 0 12px; }
+  .auth-logo { width: min(100%, 150px); margin: 0 0 12px; }
   .auth-body { padding: 26px 24px 30px; }
 }
 

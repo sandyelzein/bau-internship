@@ -3,7 +3,6 @@ const express = require('express');
 const router = express.Router();
 const {
   getMyProfile,
-  updateMyGPA,
   getAllStudents,
   getStudentById,
   updateStudent,
@@ -16,7 +15,6 @@ const {
 
 // Student routes
 router.get('/profile', authenticate, requireStudent, getMyProfile);
-router.patch('/profile/gpa', authenticate, requireStudent, updateMyGPA);
 
 // Committee routes
 router.get('/', authenticate, requireCommittee, getAllStudents);

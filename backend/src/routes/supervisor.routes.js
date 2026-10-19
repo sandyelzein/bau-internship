@@ -12,10 +12,11 @@ const {
   completeProfileSetup,
 } = require('../controllers/supervisor.controller');
 const { authenticate, requireStudent, requireCommittee, requireSupervisor } = require('../middleware/auth.middleware');
+const { publicFormLimiter } = require('../middleware/form-security.middleware');
 
 // Public one-time supervisor profile setup link
-router.get('/profile/:token', getProfileSetup);
-router.post('/profile/:token', completeProfileSetup);
+router.get('/profile/:token', publicFormLimiter, getProfileSetup);
+router.post('/profile/:token', publicFormLimiter, completeProfileSetup);
 
 // Student endpoints
 router.get('/my',   authenticate, requireStudent, getMySupervisor);
